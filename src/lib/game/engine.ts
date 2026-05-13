@@ -1,4 +1,5 @@
 import { CLASSIC_TURTLE_COORDINATES, isCoordinateFree, tilesOverlap2D } from "@/src/lib/game/coordinates";
+import { findAvailableMoves } from "@/src/lib/game/find-available-moves";
 import { createTileFaces } from "@/src/lib/game/tile-faces";
 import { shuffleList, shuffleListWithSeed } from "@/src/lib/game/utils";
 import type { BoardState, GameMove, GameStatus, MahjongTileModel } from "@/src/lib/game/types";
@@ -41,21 +42,7 @@ export function removePair(tiles: readonly MahjongTileModel[], pair: GameMove) {
 }
 
 export function findAvailablePairs(tiles: readonly MahjongTileModel[]) {
-  const freeTiles = getActiveTiles(tiles).filter((tile) => isTileFree(tile, tiles));
-  const pairs: GameMove[] = [];
-
-  for (let firstIndex = 0; firstIndex < freeTiles.length; firstIndex += 1) {
-    for (let secondIndex = firstIndex + 1; secondIndex < freeTiles.length; secondIndex += 1) {
-      const first = freeTiles[firstIndex];
-      const second = freeTiles[secondIndex];
-
-      if (canRemovePair(first, second)) {
-        pairs.push({ firstId: first.id, secondId: second.id });
-      }
-    }
-  }
-
-  return pairs;
+  return findAvailableMoves(tiles);
 }
 
 export function checkGameStatus(tiles: readonly MahjongTileModel[]): GameStatus {
@@ -63,7 +50,7 @@ export function checkGameStatus(tiles: readonly MahjongTileModel[]): GameStatus 
     return "won";
   }
 
-  return findAvailablePairs(tiles).length > 0 ? "playing" : "no-moves";
+  return findAvailableMoves(tiles).length > 0 ? "playing" : "lost";
 }
 
 export function getHintPair(tiles: readonly MahjongTileModel[]) {
@@ -140,7 +127,7 @@ export function createInitialBoardState(): BoardState {
   let tiles = generateBoard(`zen-mahjong-classic-board-${attempt}`);
   let status = checkGameStatus(tiles);
 
-  for (attempt = 1; attempt < 30 && status === "no-moves"; attempt += 1) {
+  for (attempt = 1; attempt < 30 && status === "lost"; attempt += 1) {
     tiles = generateBoard(`zen-mahjong-classic-board-${attempt}`);
     status = checkGameStatus(tiles);
   }

@@ -9,7 +9,7 @@ export type TileFamily =
   | "flower"
   | "season";
 
-export type GameStatus = "playing" | "won" | "no-moves";
+export type GameStatus = "playing" | "won" | "lost";
 
 export type TileFace = {
   type: string;
@@ -29,10 +29,12 @@ export type MahjongTileModel = TileFace & {
   removed: boolean;
 };
 
-export type GameMove = {
+export type TilePair = {
   firstId: string;
   secondId: string;
 };
+
+export type GameMove = TilePair;
 
 export type BoardState = {
   tiles: MahjongTileModel[];

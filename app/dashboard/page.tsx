@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Clock, Crown, Flame, Play, ShoppingBag, Target, Trophy, TrendingUp, Zap } from "lucide-react";
+import { Crown, Flame, Play, ShoppingBag, Target, Trophy, TrendingUp, Zap } from "lucide-react";
 import { AppShell } from "@/components/layout/app-shell";
 import { MotionShell } from "@/components/layout/motion-shell";
 import { QuestCard } from "@/components/dashboard/quest-card";
@@ -37,9 +37,14 @@ export default function DashboardPage() {
                 </Link>
               </Button>
 
-              <div className="grid gap-4 md:grid-cols-2">
-                <ActionCard href="/game" icon={<Clock />} title="Продолжить" subtitle="Вернись к последнему раскладу" />
-                <ActionCard href="/leaderboard" icon={<Trophy />} title="Ежедневный турнир" subtitle="Осталось 2 ч 34 мин" badge="Идет" />
+              <div className="grid gap-4">
+                <ActionCard
+                  href="/tournament"
+                  icon={<Trophy />}
+                  title="Ежедневный турнир"
+                  subtitle="Осталось 2 ч 34 мин"
+                  badge="Идет"
+                />
               </div>
 
               <GameSaveSummary />

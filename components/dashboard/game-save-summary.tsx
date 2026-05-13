@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { Clock, History, Play, Trophy } from "lucide-react";
+import { Play, Trophy } from "lucide-react";
 import { useAuth } from "@/src/context/AuthContext";
 import {
   loadGameDashboardSummary,
@@ -129,35 +129,6 @@ export function GameSaveSummary() {
               {summary.fastestTime === null ? "—" : formatTime(summary.fastestTime)}
             </p>
           </div>
-        </CardContent>
-      </Card>
-
-      <Card className="xl:col-span-2">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <History className="text-primary" />
-            Последние партии
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="grid gap-3 md:grid-cols-5">
-          {summary.recentGames.length > 0 ? (
-            summary.recentGames.map((game) => (
-              <div key={game.id} className="rounded-lg border border-primary/10 bg-popover p-3">
-                <div className="mb-2 flex items-center gap-2 text-xs text-muted-foreground">
-                  <Clock className="size-3" />
-                  {formatTime(game.elapsedSeconds)}
-                </div>
-                <p className="text-lg font-black">{game.score}</p>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {game.movesCount} ходов · {difficultyLabel(game.difficulty)}
-                </p>
-              </div>
-            ))
-          ) : (
-            <p className="text-sm text-muted-foreground md:col-span-5">
-              История появится после первой завершённой партии.
-            </p>
-          )}
         </CardContent>
       </Card>
     </div>
