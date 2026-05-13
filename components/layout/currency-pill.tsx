@@ -1,6 +1,8 @@
 import { Gem, Coins } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+const currencyFormatter = new Intl.NumberFormat("ru-RU");
+
 export function CurrencyPill({
   type,
   value,
@@ -21,7 +23,7 @@ export function CurrencyPill({
       )}
     >
       <Icon className={type === "coins" ? "text-gold" : "text-purple-energy"} fill="currentColor" />
-      {value.toLocaleString()}
+      {currencyFormatter.format(value)}
     </div>
   );
 }

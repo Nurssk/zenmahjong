@@ -3,6 +3,7 @@ import { Clock, Crown, Flame, Play, ShoppingBag, Target, Trophy, TrendingUp, Zap
 import { AppShell } from "@/components/layout/app-shell";
 import { MotionShell } from "@/components/layout/motion-shell";
 import { QuestCard } from "@/components/dashboard/quest-card";
+import { GameSaveSummary } from "@/components/dashboard/game-save-summary";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -40,6 +41,8 @@ export default function DashboardPage() {
                 <ActionCard href="/game" icon={<Clock />} title="Продолжить" subtitle="Вернись к последнему раскладу" />
                 <ActionCard href="/leaderboard" icon={<Trophy />} title="Ежедневный турнир" subtitle="Осталось 2 ч 34 мин" badge="Идет" />
               </div>
+
+              <GameSaveSummary />
 
               <Card>
                 <CardHeader className="flex-row items-center justify-between">

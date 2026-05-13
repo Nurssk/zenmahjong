@@ -113,6 +113,17 @@ export async function saveUserToFirestore(
   return payload;
 }
 
+async function syncUserProfileInBackground(
+  user: User,
+  extraData?: Partial<Pick<FirestoreUser, "name" | "city" | "provider">>,
+) {
+  try {
+    await saveUserToFirestore(user, extraData);
+  } catch (error) {
+    console.warn("Firestore profile sync failed:", error);
+  }
+}
+
 export async function getUserProfile(uid: string) {
   const { db } = assertFirebaseReady();
   const snapshot = await getDoc(doc(db, "users", uid));
@@ -154,7 +165,7 @@ export async function registerWithEmail(email: string, password: string, name: s
     displayName: name,
   });
 
-  await saveUserToFirestore(credential.user, {
+  void syncUserProfileInBackground(credential.user, {
     name,
     provider: "email",
   });
@@ -166,7 +177,7 @@ export async function loginWithEmail(email: string, password: string) {
   const { auth } = assertFirebaseReady();
   const credential = await signInWithEmailAndPassword(auth, email, password);
 
-  await saveUserToFirestore(credential.user, {
+  void syncUserProfileInBackground(credential.user, {
     provider: "email",
   });
 
@@ -177,7 +188,7 @@ export async function loginWithGoogle() {
   const { auth } = assertFirebaseReady();
   const credential = await signInWithPopup(auth, googleProvider);
 
-  await saveUserToFirestore(credential.user, {
+  void syncUserProfileInBackground(credential.user, {
     provider: "google",
   });
 

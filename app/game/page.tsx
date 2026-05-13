@@ -1,12 +1,8 @@
 import { MotionShell } from "@/components/layout/motion-shell";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { AtmosphericBackground } from "@/components/layout/atmospheric-background";
-import { CoachPanel } from "@/components/game/coach-panel";
-import { GameActions } from "@/components/game/game-actions";
 import { GameHeader } from "@/components/game/game-header";
 import { MahjongBoard } from "@/components/game/mahjong-board";
-import { PauseMenu } from "@/components/game/pause-menu";
-import { ScorePanel } from "@/components/game/score-panel";
 
 export default function GamePage() {
   return (
@@ -16,17 +12,9 @@ export default function GamePage() {
         <div className="relative z-10">
           <GameHeader />
           <MotionShell>
-          <div className="mx-auto grid max-w-7xl gap-6 px-4 py-8 lg:grid-cols-[1fr_300px]">
-            <div className="flex flex-col gap-4">
-              <MahjongBoard />
-              <GameActions />
+            <div className="mx-auto max-w-7xl px-4 py-8">
+              <MahjongBoard persistGame />
             </div>
-            <aside className="flex flex-col gap-4">
-              <CoachPanel />
-              <PauseMenu />
-              <ScorePanel />
-            </aside>
-          </div>
           </MotionShell>
         </div>
       </main>
