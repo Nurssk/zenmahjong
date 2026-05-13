@@ -1,0 +1,198 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@font-face {
+  font-family: "SANSON";
+  src:
+    url("https://db.onlinewebfonts.com/t/6a4b9fda789b7557979417cbfb5e4ede.woff2") format("woff2"),
+    url("https://db.onlinewebfonts.com/t/6a4b9fda789b7557979417cbfb5e4ede.woff") format("woff");
+  font-display: swap;
+  font-style: normal;
+  font-weight: 400;
+}
+
+:root {
+  --background: #0a0a0a;
+  --background-mid: #0f0f0f;
+  --foreground: #e8e8e8;
+  --card: #151515;
+  --card-foreground: #e8e8e8;
+  --popover: #1a1a1a;
+  --popover-foreground: #e8e8e8;
+  --primary: #ff8800;
+  --primary-foreground: #0a0a0a;
+  --secondary: #1f1f1f;
+  --secondary-foreground: #e8e8e8;
+  --muted: #252525;
+  --muted-foreground: #888888;
+  --accent: #ff6600;
+  --accent-foreground: #ffffff;
+  --destructive: #ff4444;
+  --destructive-foreground: #ffffff;
+  --border: rgba(255, 136, 0, 0.15);
+  --input: rgba(255, 136, 0, 0.1);
+  --input-background: #1a1a1a;
+  --ring: #ff8800;
+  --gold: #ffaa00;
+  --amber: #ff8800;
+  --orange-glow: #ff6600;
+  --purple-energy: #aa44ff;
+  --red-aura: #ff4444;
+  --green-success: #22c55e;
+  --radius: 0.75rem;
+}
+
+.light {
+  --background: #f6f0e6;
+  --background-mid: #eee4d5;
+  --foreground: #1b130d;
+  --card: #fff9ef;
+  --card-foreground: #1b130d;
+  --popover: #fff4e4;
+  --popover-foreground: #1b130d;
+  --primary: #cc6500;
+  --primary-foreground: #fff8ef;
+  --secondary: #eadac4;
+  --secondary-foreground: #1b130d;
+  --muted: #e6d7c2;
+  --muted-foreground: #6f5d4b;
+  --accent: #b95100;
+  --accent-foreground: #ffffff;
+  --destructive: #c0392b;
+  --destructive-foreground: #ffffff;
+  --border: rgba(204, 101, 0, 0.24);
+  --input: rgba(204, 101, 0, 0.18);
+  --input-background: #fff9ef;
+  --ring: #cc6500;
+}
+
+* {
+  border-color: var(--border);
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  min-height: 100vh;
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-geist-sans), Inter, Manrope, system-ui, sans-serif;
+  font-feature-settings: "rlig" 1, "calt" 1;
+  text-rendering: optimizeLegibility;
+}
+
+body::before {
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+  content: "";
+  background:
+    radial-gradient(ellipse at 50% 12%, rgba(255, 136, 0, 0.08), transparent 45%),
+    radial-gradient(circle at 12% 8%, rgba(255, 136, 0, 0.16), transparent 30%),
+    radial-gradient(circle at 88% 18%, rgba(170, 68, 255, 0.12), transparent 28%),
+    linear-gradient(180deg, var(--background) 0%, var(--background-mid) 55%, var(--popover) 100%);
+}
+
+body::after {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  content: "";
+  background-image: radial-gradient(circle, rgba(255, 136, 0, 0.18) 1px, transparent 1px);
+  background-size: 44px 44px;
+  opacity: 0.16;
+  mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.85), transparent 80%);
+}
+
+::selection {
+  background: rgba(255, 136, 0, 0.35);
+}
+
+.text-zen-gradient {
+  background: linear-gradient(90deg, var(--gold), var(--primary), var(--accent));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+@layer components {
+  .type-display-xl {
+    font-family: "SANSON", var(--font-geist-sans), Inter, Manrope, system-ui, sans-serif;
+    font-size: clamp(3.25rem, 9vw, 7.5rem);
+    font-weight: 900;
+    line-height: 0.86;
+    letter-spacing: 0.045em;
+    text-transform: uppercase;
+    text-shadow:
+      0 0 26px rgba(255, 136, 0, 0.28),
+      0 8px 38px rgba(0, 0, 0, 0.68);
+  }
+
+  .type-display-lg {
+    font-family: "SANSON", var(--font-geist-sans), Inter, Manrope, system-ui, sans-serif;
+    font-size: clamp(2.45rem, 6vw, 5.25rem);
+    font-weight: 900;
+    line-height: 0.94;
+    letter-spacing: 0.035em;
+    text-transform: uppercase;
+    text-shadow:
+      0 0 20px rgba(255, 136, 0, 0.22),
+      0 6px 28px rgba(0, 0, 0, 0.55);
+  }
+
+  .type-heading-xl {
+    font-family: "SANSON", var(--font-geist-sans), Inter, Manrope, system-ui, sans-serif;
+    font-size: clamp(2rem, 4vw, 3.65rem);
+    font-weight: 900;
+    line-height: 1.02;
+    letter-spacing: 0.025em;
+    text-transform: uppercase;
+    text-shadow: 0 0 18px rgba(255, 136, 0, 0.16);
+  }
+
+  .type-heading-lg {
+    font-family: "SANSON", var(--font-geist-sans), Inter, Manrope, system-ui, sans-serif;
+    font-size: clamp(1.55rem, 2.8vw, 2.45rem);
+    font-weight: 900;
+    line-height: 1.08;
+    letter-spacing: 0.018em;
+    text-transform: uppercase;
+  }
+
+  .type-body-lg {
+    font-family: var(--font-geist-sans), Inter, Manrope, system-ui, sans-serif;
+    font-size: clamp(1rem, 1.5vw, 1.125rem);
+    font-weight: 450;
+    line-height: 1.75;
+    letter-spacing: 0;
+  }
+
+  .type-body {
+    font-family: var(--font-geist-sans), Inter, Manrope, system-ui, sans-serif;
+    font-size: 0.95rem;
+    font-weight: 450;
+    line-height: 1.65;
+    letter-spacing: 0;
+  }
+
+  .type-caption {
+    font-family: var(--font-geist-sans), Inter, Manrope, system-ui, sans-serif;
+    font-size: 0.75rem;
+    font-weight: 700;
+    line-height: 1.35;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+}
+
+.zen-card-glow {
+  box-shadow: 0 0 50px rgba(255, 136, 0, 0.1);
+}
+
+.zen-focus-ring {
+  box-shadow: 0 0 0 2px rgba(255, 136, 0, 0.2);
+}

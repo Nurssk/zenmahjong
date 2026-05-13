@@ -1,0 +1,16 @@
+export {
+  completeOnboarding,
+  getPostAuthRedirectPath,
+  getUserProfile,
+  loginWithEmail,
+  loginWithGoogle,
+  logout,
+  mapFirebaseAuthError,
+  registerWithEmail,
+  saveUserToFirestore,
+  type ExperienceLevel,
+  type FocusGoal,
+  type FirestoreUser,
+  type OnboardingProfileInput,
+  type PreferredSessionLength,
+} from "@/src/lib/auth";
