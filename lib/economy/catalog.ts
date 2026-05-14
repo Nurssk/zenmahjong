@@ -1,1 +1,1 @@
-export { battlePassRewards, shopItems } from "@/constants/product";
+export { shopItems } from "@/constants/product";

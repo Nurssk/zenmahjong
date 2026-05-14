@@ -2,7 +2,6 @@ import Link from "next/link";
 import {
   BarChart3,
   BookOpen,
-  Crown,
   Gamepad2,
   LayoutDashboard,
   Medal,
@@ -19,7 +18,6 @@ const navItems = [
   { href: "/leaderboard", label: "Рейтинг", icon: Medal },
   { href: "/stats", label: "Статистика", icon: BarChart3 },
   { href: "/shop", label: "Магазин", icon: ShoppingBag },
-  { href: "/battle-pass", label: "Zen Pass", icon: Crown },
   { href: "/profile", label: "Профиль", icon: User },
 ];
 

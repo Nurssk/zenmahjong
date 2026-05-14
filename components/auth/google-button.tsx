@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
 import { mapFirebaseAuthError } from "@/src/lib/auth";
 import { useAuth } from "@/src/context/AuthContext";
+import { resolvePostAuthRedirectPath } from "@/src/lib/progress/tutorial-progress-service";
 
 export function GoogleButton() {
   const router = useRouter();
@@ -23,12 +24,13 @@ export function GoogleButton() {
         onClick={async () => {
           setLoading(true);
           try {
-            await loginWithGoogle();
+            const user = await loginWithGoogle();
+            const redirectPath = await resolvePostAuthRedirectPath(user.uid);
             toast({
               title: "Вход выполнен",
               description: "Google-профиль подключен к Zen Mahjong.",
             });
-            router.replace("/dashboard");
+            router.replace(redirectPath);
           } catch (error) {
             toast({
               title: "Google вход не выполнен",

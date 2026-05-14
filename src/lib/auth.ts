@@ -9,6 +9,7 @@ import {
 } from "firebase/auth";
 import { doc, getDoc, serverTimestamp, setDoc } from "firebase/firestore";
 import { auth, db, googleProvider, isFirebaseConfigured } from "@/src/lib/firebase";
+import { resolvePostAuthRedirectPath } from "@/src/lib/progress/tutorial-progress-service";
 
 export type AuthProviderId = "email" | "google";
 export type FocusGoal = "relax" | "attention" | "daily_challenges" | "leaderboard";
@@ -136,9 +137,7 @@ export async function getUserProfile(uid: string) {
 }
 
 export async function getPostAuthRedirectPath(user: User) {
-  const profile = await getUserProfile(user.uid);
-
-  return profile?.onboardingCompleted === true ? "/dashboard" : "/onboarding";
+  return resolvePostAuthRedirectPath(user.uid);
 }
 
 export async function completeOnboarding(uid: string, data: OnboardingProfileInput) {

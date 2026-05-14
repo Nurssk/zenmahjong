@@ -88,7 +88,6 @@ export type LeaderboardEntry = {
   score: number;
   time: string;
   streak: number;
-  battlePassLevel: number;
   isCurrentUser?: boolean;
 };
 
@@ -98,13 +97,6 @@ export type DailyQuest = {
   progress: number;
   target: number;
   reward: string;
-};
-
-export type BattlePassReward = {
-  level: number;
-  free: string;
-  pro: string;
-  claimed?: boolean;
 };
 
 export type ShopItem = {

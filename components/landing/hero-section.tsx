@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, Brain, Crown, Sparkles } from "lucide-react";
+import { ArrowRight, Brain, Coins, Sparkles } from "lucide-react";
 import { motion } from "framer-motion";
 import { AtmosphericBackground } from "@/components/layout/atmospheric-background";
 import { Button } from "@/components/ui/button";
@@ -41,9 +41,9 @@ export function HeroSection() {
           className="mb-8"
         >
           <Button asChild size="xl" className="group relative">
-            <Link href="/dashboard">
+            <Link href="/login">
               <Sparkles data-icon="inline-start" />
-              Играть
+              Начать игру
               <ArrowRight data-icon="inline-end" />
             </Link>
           </Button>
@@ -53,7 +53,7 @@ export function HeroSection() {
           {[
             ["Ежедневные турниры", "Сражайся за легендарные награды", Sparkles],
             ["AI-тренеры", "Тренируйся с мистическими стратегами", Brain],
-            ["Zen Pass", "Открывай эксклюзивные сезонные награды", Crown],
+            ["Игровая экономика", "Покупай подсказки, отмены и косметические наборы", Coins],
           ].map(([title, description, Icon], index) => (
             <motion.div
               key={String(title)}
@@ -83,7 +83,7 @@ export function HeroSection() {
             <Link href="/login">Войти</Link>
           </Button>
           <Button asChild variant="secondary">
-            <Link href="/register">Регистрация</Link>
+            <Link href="/register">Создать аккаунт</Link>
           </Button>
         </motion.div>
       </div>

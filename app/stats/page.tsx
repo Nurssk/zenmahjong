@@ -15,6 +15,7 @@ import {
   Timer,
   Trophy,
 } from "lucide-react";
+import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { AppShell } from "@/components/layout/app-shell";
 import { MotionShell } from "@/components/layout/motion-shell";
 import { PageHeader } from "@/components/layout/page-header";
@@ -130,9 +131,10 @@ export default function StatsPage() {
   }, [data]);
 
   return (
-    <AppShell activePath="/stats">
-      <MotionShell>
-        <div className="mx-auto flex max-w-7xl flex-col gap-5 md:gap-8">
+    <ProtectedRoute>
+      <AppShell activePath="/stats">
+        <MotionShell>
+          <div className="mx-auto flex max-w-7xl flex-col gap-5 md:gap-8">
           <section className="relative overflow-hidden rounded-xl border border-primary/20 bg-gradient-to-br from-card via-background-mid to-[#120719] p-4 shadow-glass md:rounded-2xl md:p-7">
             <div className="absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-primary/80 to-transparent" />
             <div className="relative grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-end">
@@ -192,9 +194,10 @@ export default function StatsPage() {
               </section>
             </>
           )}
-        </div>
-      </MotionShell>
-    </AppShell>
+          </div>
+        </MotionShell>
+      </AppShell>
+    </ProtectedRoute>
   );
 }
 

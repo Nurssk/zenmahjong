@@ -1,5 +1,4 @@
 import type {
-  BattlePassReward,
   BoardSkin,
   DailyQuest,
   GameMode,
@@ -66,7 +65,7 @@ export const trainers: Trainer[] = [
     tone: "Резкий, прямой и быстрый.",
     quote: "Ты теряешь темп. Сейчас важен центр.",
     accent: "from-red-500 to-orange-300",
-    unlock: "Редкий набор или Zen Pass",
+    unlock: "Редкий набор",
   },
 ];
 
@@ -188,7 +187,6 @@ export const leaderboardEntries: LeaderboardEntry[] = [
     score: 18420,
     time: "02:02",
     streak: 21,
-    battlePassLevel: 18,
   },
   {
     rank: 2,
@@ -198,7 +196,6 @@ export const leaderboardEntries: LeaderboardEntry[] = [
     score: 17310,
     time: "02:14",
     streak: 14,
-    battlePassLevel: 16,
     isCurrentUser: true,
   },
   {
@@ -209,7 +206,6 @@ export const leaderboardEntries: LeaderboardEntry[] = [
     score: 16980,
     time: "02:27",
     streak: 12,
-    battlePassLevel: 12,
   },
   {
     rank: 4,
@@ -219,16 +215,7 @@ export const leaderboardEntries: LeaderboardEntry[] = [
     score: 16240,
     time: "02:31",
     streak: 10,
-    battlePassLevel: 14,
   },
-];
-
-export const battlePassRewards: BattlePassReward[] = [
-  { level: 1, free: "100 монет", pro: "220 монет", claimed: true },
-  { level: 2, free: "1 подсказка", pro: "Редкий набор" },
-  { level: 3, free: "80 монет", pro: "25 самоцветов" },
-  { level: 4, free: "Классический набор", pro: "Осколок сезонного тренера" },
-  { level: 5, free: "1 отмена", pro: "Эксклюзивный скин доски" },
 ];
 
 export const shopItems: ShopItem[] = [

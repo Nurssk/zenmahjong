@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -11,12 +11,35 @@ import { GoogleButton } from "@/components/auth/google-button";
 import { useToast } from "@/components/ui/use-toast";
 import { mapFirebaseAuthError } from "@/src/lib/auth";
 import { useAuth } from "@/src/context/AuthContext";
+import { resolvePostAuthRedirectPath } from "@/src/lib/progress/tutorial-progress-service";
 
 export function LoginForm() {
   const router = useRouter();
-  const { loginWithEmail } = useAuth();
+  const { loading: authLoading, loginWithEmail, user } = useAuth();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (authLoading || !user) {
+      return;
+    }
+
+    let cancelled = false;
+
+    void resolvePostAuthRedirectPath(user.uid).then((path) => {
+      if (!cancelled) {
+        router.replace(path);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [authLoading, router, user]);
+
+  if (authLoading || user) {
+    return <p className="text-center text-sm font-semibold text-muted-foreground">Проверяем профиль...</p>;
+  }
 
   return (
     <form
@@ -26,15 +49,16 @@ export function LoginForm() {
         setLoading(true);
         const formData = new FormData(event.currentTarget);
         try {
-          await loginWithEmail(
+          const user = await loginWithEmail(
             String(formData.get("email")),
             String(formData.get("password")),
           );
+          const redirectPath = await resolvePostAuthRedirectPath(user.uid);
           toast({
             title: "Вход выполнен",
             description: "Добро пожаловать обратно в Zen Mahjong.",
           });
-          router.replace("/dashboard");
+          router.replace(redirectPath);
         } catch (error) {
           toast({
             title: "Ошибка входа",

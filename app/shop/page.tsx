@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { Check, Coins, Gem, Gift, Lightbulb, RotateCcw } from "lucide-react";
+import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { FakePaymentModal } from "@/components/shop/fake-payment-modal";
 import { AppShell } from "@/components/layout/app-shell";
 import { MotionShell } from "@/components/layout/motion-shell";
@@ -173,9 +174,10 @@ export default function ShopPage() {
   }
 
   return (
-    <AppShell activePath="/shop">
-      <MotionShell>
-        <div className="mx-auto flex max-w-7xl flex-col gap-5 md:gap-8">
+    <ProtectedRoute>
+      <AppShell activePath="/shop">
+        <MotionShell>
+          <div className="mx-auto flex max-w-7xl flex-col gap-5 md:gap-8">
           <section className="relative overflow-hidden rounded-xl border border-primary/20 bg-gradient-to-br from-card via-background-mid to-[#140812] p-4 shadow-glass md:rounded-2xl md:p-7">
             <div className="absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-primary/80 to-transparent" />
             <div className="relative grid gap-5 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-end">
@@ -216,7 +218,7 @@ export default function ShopPage() {
 
           <ShopSection
             badge="Премиум"
-            description="Самоцветы скоро можно будет использовать для премиум-тем и сезонных наград."
+            description="Самоцветы скоро можно будет использовать для премиум-тем и косметических наград."
             title="Самоцветы"
           >
             <div className="grid gap-4 md:grid-cols-3">
@@ -267,20 +269,21 @@ export default function ShopPage() {
               ))}
             </div>
           </ShopSection>
-        </div>
-      </MotionShell>
+          </div>
+        </MotionShell>
 
-      <FakePaymentModal
-        loading={claimingPaymentPack}
-        pack={selectedPaymentPack}
-        onClose={() => {
-          if (!claimingPaymentPack) {
-            setSelectedPaymentPack(null);
-          }
-        }}
-        onConfirm={() => void handleClaimCurrencyGift()}
-      />
-    </AppShell>
+        <FakePaymentModal
+          loading={claimingPaymentPack}
+          pack={selectedPaymentPack}
+          onClose={() => {
+            if (!claimingPaymentPack) {
+              setSelectedPaymentPack(null);
+            }
+          }}
+          onConfirm={() => void handleClaimCurrencyGift()}
+        />
+      </AppShell>
+    </ProtectedRoute>
   );
 }
 

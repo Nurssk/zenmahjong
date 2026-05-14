@@ -1,14 +1,14 @@
 import Link from "next/link";
-import { Crown, Flame, Play, ShoppingBag, Target, TrendingUp, Zap } from "lucide-react";
+import { Play, ShoppingBag, Target, Zap } from "lucide-react";
 import { AppShell } from "@/components/layout/app-shell";
 import { MotionShell } from "@/components/layout/motion-shell";
 import { QuestCard } from "@/components/dashboard/quest-card";
 import { GameSaveSummary } from "@/components/dashboard/game-save-summary";
 import { DailyTournamentCard } from "@/components/dashboard/daily-tournament-card";
+import { DashboardStatsCard } from "@/components/dashboard/dashboard-stats-card";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
 
 export default function DashboardPage() {
   return (
@@ -61,37 +61,7 @@ export default function DashboardPage() {
             </div>
 
             <aside className="flex flex-col gap-4 lg:gap-6">
-              <Link href="/battle-pass" className="group relative overflow-hidden rounded-xl border border-purple-energy/30 bg-gradient-to-br from-popover to-background-mid p-4 transition-all hover:border-purple-energy/60 md:p-6">
-                <div className="absolute right-0 top-0 size-32 rounded-full bg-purple-energy/10 blur-3xl" />
-                <div className="relative">
-                  <div className="mb-3 flex items-center gap-2 text-sm font-bold text-purple-300">
-                    <Crown />
-                    Zen Pass
-                  </div>
-                  <h2 className="mb-2 font-display text-2xl font-black uppercase tracking-[0.02em] text-purple-100 md:type-heading-lg">Сезон 1: Воины тени</h2>
-                  <div className="mb-2 flex justify-between text-sm text-muted-foreground">
-                    <span>Уровень 8</span>
-                    <span>2,450 / 3,000 XP</span>
-                  </div>
-                  <Progress value={82} />
-                  <p className="mt-2 text-xs text-purple-300">Осталось 23 дня</p>
-                </div>
-              </Link>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <TrendingUp className="text-primary" />
-                    Твоя статистика
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="grid grid-cols-2 gap-4">
-                  <StatBox label="Победы" value="68%" />
-                  <StatBox label="Серия" value="5" icon={<Flame className="text-orange-glow" />} />
-                  <StatBox label="Партии" value="234" />
-                  <StatBox label="Ранг" value="#142" />
-                </CardContent>
-              </Card>
+              <DashboardStatsCard />
 
               <Link href="/shop" className="rounded-xl border border-primary/30 bg-gradient-to-br from-secondary to-card p-4 text-left transition-all hover:border-primary/60 md:p-6">
                 <div className="mb-2 flex items-center gap-3">
@@ -106,17 +76,5 @@ export default function DashboardPage() {
         </MotionShell>
       </AppShell>
     </ProtectedRoute>
-  );
-}
-
-function StatBox({ label, value, icon }: { label: string; value: string; icon?: React.ReactNode }) {
-  return (
-    <div className="rounded-lg bg-popover p-3">
-      <p className="mb-1 text-xs text-muted-foreground">{label}</p>
-      <div className="flex items-center gap-1">
-        <p className="text-xl font-bold">{value}</p>
-        {icon}
-      </div>
-    </div>
   );
 }

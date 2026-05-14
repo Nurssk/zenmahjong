@@ -13,7 +13,7 @@ const navItems = [
   { href: "/dashboard", label: "Главная" },
   { href: "/game", label: "Игра" },
   { href: "/leaderboard", label: "Рейтинг" },
-  { href: "/battle-pass", label: "Zen Pass" },
+  { href: "/shop", label: "Магазин" },
 ];
 
 export function MarketingHeader() {
