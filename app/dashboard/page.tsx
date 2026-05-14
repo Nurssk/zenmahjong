@@ -1,9 +1,10 @@
 import Link from "next/link";
-import { Crown, Flame, Play, ShoppingBag, Target, Trophy, TrendingUp, Zap } from "lucide-react";
+import { Crown, Flame, Play, ShoppingBag, Target, TrendingUp, Zap } from "lucide-react";
 import { AppShell } from "@/components/layout/app-shell";
 import { MotionShell } from "@/components/layout/motion-shell";
 import { QuestCard } from "@/components/dashboard/quest-card";
 import { GameSaveSummary } from "@/components/dashboard/game-save-summary";
+import { DailyTournamentCard } from "@/components/dashboard/daily-tournament-card";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,37 +15,31 @@ export default function DashboardPage() {
     <ProtectedRoute>
       <AppShell activePath="/dashboard">
         <MotionShell>
-        <div className="mx-auto flex max-w-7xl flex-col gap-8">
+        <div className="mx-auto flex max-w-7xl flex-col gap-4 md:gap-8">
           <section>
-            <h1 className="type-heading-lg mb-2 text-zen-gradient">С возвращением, воин</h1>
-            <p className="type-body-lg text-muted-foreground">Продолжи путь к мастерству.</p>
+            <h1 className="type-heading-lg mb-1 text-zen-gradient">С возвращением, воин</h1>
+            <p className="text-sm text-muted-foreground md:type-body-lg">Продолжи путь к мастерству.</p>
           </section>
 
-          <div className="grid gap-6 lg:grid-cols-3">
-            <div className="flex flex-col gap-6 lg:col-span-2">
-              <Button asChild size="xl" className="h-auto justify-between p-8 text-left">
+          <div className="grid gap-4 lg:grid-cols-3 lg:gap-6">
+            <div className="flex flex-col gap-4 lg:col-span-2 lg:gap-6">
+              <Button asChild size="xl" className="h-auto justify-between rounded-xl p-4 text-left sm:p-6 md:p-8">
                 <Link href="/game" className="w-full">
-                  <span className="flex items-center gap-6">
-                    <span className="grid size-16 place-items-center rounded-full bg-black/20">
-                      <Play className="size-8" fill="currentColor" />
+                  <span className="flex items-center gap-4 md:gap-6">
+                    <span className="grid size-12 place-items-center rounded-full bg-black/20 md:size-16">
+                      <Play className="size-6 md:size-8" fill="currentColor" />
                     </span>
                     <span>
-                      <span className="block font-display text-3xl font-black uppercase tracking-[0.045em]">Играть</span>
+                      <span className="block font-display text-2xl font-black uppercase tracking-[0.045em] md:text-3xl">Играть</span>
                       <span className="block text-sm font-semibold text-primary-foreground/70">Новая партия</span>
                     </span>
                   </span>
-                  <Zap className="size-12 opacity-50" />
+                  <Zap className="size-9 opacity-50 md:size-12" />
                 </Link>
               </Button>
 
               <div className="grid gap-4">
-                <ActionCard
-                  href="/tournament"
-                  icon={<Trophy />}
-                  title="Ежедневный турнир"
-                  subtitle="Осталось 2 ч 34 мин"
-                  badge="Идет"
-                />
+                <DailyTournamentCard />
               </div>
 
               <GameSaveSummary />
@@ -65,15 +60,15 @@ export default function DashboardPage() {
               </Card>
             </div>
 
-            <aside className="flex flex-col gap-6">
-              <Link href="/battle-pass" className="group relative overflow-hidden rounded-xl border border-purple-energy/30 bg-gradient-to-br from-popover to-background-mid p-6 transition-all hover:border-purple-energy/60">
+            <aside className="flex flex-col gap-4 lg:gap-6">
+              <Link href="/battle-pass" className="group relative overflow-hidden rounded-xl border border-purple-energy/30 bg-gradient-to-br from-popover to-background-mid p-4 transition-all hover:border-purple-energy/60 md:p-6">
                 <div className="absolute right-0 top-0 size-32 rounded-full bg-purple-energy/10 blur-3xl" />
                 <div className="relative">
                   <div className="mb-3 flex items-center gap-2 text-sm font-bold text-purple-300">
                     <Crown />
                     Zen Pass
                   </div>
-                  <h2 className="type-heading-lg mb-2 text-purple-100">Сезон 1: Воины тени</h2>
+                  <h2 className="mb-2 font-display text-2xl font-black uppercase tracking-[0.02em] text-purple-100 md:type-heading-lg">Сезон 1: Воины тени</h2>
                   <div className="mb-2 flex justify-between text-sm text-muted-foreground">
                     <span>Уровень 8</span>
                     <span>2,450 / 3,000 XP</span>
@@ -98,7 +93,7 @@ export default function DashboardPage() {
                 </CardContent>
               </Card>
 
-              <Link href="/shop" className="rounded-xl border border-primary/30 bg-gradient-to-br from-secondary to-card p-6 text-left transition-all hover:border-primary/60">
+              <Link href="/shop" className="rounded-xl border border-primary/30 bg-gradient-to-br from-secondary to-card p-4 text-left transition-all hover:border-primary/60 md:p-6">
                 <div className="mb-2 flex items-center gap-3">
                   <ShoppingBag className="text-primary" />
                   <h2 className="font-bold">Магазин</h2>
@@ -111,33 +106,6 @@ export default function DashboardPage() {
         </MotionShell>
       </AppShell>
     </ProtectedRoute>
-  );
-}
-
-function ActionCard({
-  href,
-  icon,
-  title,
-  subtitle,
-  badge,
-}: {
-  href: string;
-  icon: React.ReactNode;
-  title: string;
-  subtitle: string;
-  badge?: string;
-}) {
-  return (
-    <Link href={href} className="relative rounded-xl border border-primary/20 bg-card p-6 text-left transition-all hover:border-primary/40 hover:bg-popover">
-      {badge ? (
-        <span className="absolute right-4 top-4 rounded bg-red-aura px-2 py-1 text-xs font-bold">
-          {badge}
-        </span>
-      ) : null}
-      <div className="mb-3 text-primary [&_svg]:size-6">{icon}</div>
-      <h3 className="mb-1 font-bold">{title}</h3>
-      <p className="text-sm text-muted-foreground">{subtitle}</p>
-    </Link>
   );
 }
 

@@ -15,14 +15,12 @@ import {
   Pause,
   Play,
   RotateCcw,
-  Shuffle,
   Star,
   Trophy,
 } from "lucide-react";
 import { GameActionButton } from "@/components/game/game-action-button";
 import { MahjongTile } from "@/components/game/mahjong-tile";
 import { useToast } from "@/components/ui/use-toast";
-import { demoInventory } from "@/constants/product";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/src/context/AuthContext";
 import { useSiteAudio } from "@/src/context/SiteAudioContext";
@@ -30,15 +28,26 @@ import { playSound } from "@/src/lib/audio";
 import { AUDIO_ASSETS } from "@/src/lib/audio/audio-assets";
 import { useSoundPreference } from "@/src/hooks/use-sound-preference";
 import {
+  DEFAULT_ECONOMY,
+  ECONOMY_STORAGE_KEY,
+  ECONOMY_UPDATED_EVENT,
+  createDefaultPlayerEconomy,
+  getPlayerEconomy,
+  updateCoinBalance,
+  updateHintBalance,
+  updateUndoBalance,
+  type PlayerEconomy,
+} from "@/src/lib/economy/economy-service";
+import {
   clearCurrentGame,
   loadCurrentGame,
-  saveCompletedGame,
   saveCurrentGame,
   type CurrentGameSave,
   type CurrentGameSaveInput,
   type SavedGameDifficulty,
   type SavedGameMove,
 } from "@/src/lib/game-save";
+import { buildGameResultFromState, saveGameResultWithFallback } from "@/src/lib/stats/game-history-service";
 import {
   checkGameStatus,
   createInitialBoardState,
@@ -46,21 +55,16 @@ import {
   getHintPair,
   isTileFree,
   selectTile,
-  shuffleRemainingTiles,
 } from "@/src/lib/game";
 import type { BoardState, MahjongTileModel } from "@/src/lib/game";
 
-const TILE_WIDTH = 56;
-const TILE_HEIGHT = 80;
-const TILE_DEPTH = 7;
-const OFFSET_LEFT = 80;
-const OFFSET_TOP = 30;
-const BOARD_WIDTH = 940;
-const BOARD_HEIGHT = 690;
 const BASE_PAIR_SCORE = 50;
 const COMBO_WINDOW_SECONDS = 5;
 const TILE_EXIT_ANIMATION_MS = 260;
-const MAX_SHUFFLES = demoInventory.shuffle;
+const TILE_DEAL_DURATION_SECONDS = 0.32;
+const TILE_DEAL_DELAY_STEP_SECONDS = 0.0055;
+const TILE_DEAL_MAX_DELAY_SECONDS = 0.78;
+const TILE_DEAL_LOCK_MS = 1150;
 
 export type Difficulty = "easy" | "medium" | "hard";
 type ScoredMove = SavedGameMove & Required<Pick<SavedGameMove, "pointsEarned" | "comboAtMove" | "timestamp">>;
@@ -69,6 +73,15 @@ type ScoreState = {
   combo: number;
   lastMatchSecond: number | null;
   history: ScoredMove[];
+};
+
+type LocalSessionSnapshot = {
+  state: BoardState;
+  scoreState: ScoreState;
+  difficulty: Difficulty;
+  elapsedSeconds: number;
+  hintsUsed: number;
+  undoUsed: number;
 };
 
 export type GameWinStats = {
@@ -107,9 +120,10 @@ const difficulties: Array<{ id: Difficulty; label: string }> = [
 
 function getTileStyle(tile: MahjongTileModel) {
   return {
-    left: `${((tile.x * TILE_WIDTH + tile.z * TILE_DEPTH + OFFSET_LEFT) / BOARD_WIDTH) * 100}%`,
-    top: `${((tile.y * TILE_HEIGHT + tile.z * TILE_DEPTH + OFFSET_TOP) / BOARD_HEIGHT) * 100}%`,
-    width: `${(TILE_WIDTH / BOARD_WIDTH) * 100}%`,
+    left: `calc(var(--board-offset-x) + var(--tile-x-step) * ${tile.x} + var(--tile-depth) * ${tile.z})`,
+    top: `calc(var(--board-offset-y) + var(--tile-y-step) * ${tile.y} + var(--tile-depth) * ${tile.z})`,
+    width: "var(--tile-w)",
+    height: "var(--tile-h)",
     zIndex: tile.z * 20 + Math.round(tile.y * 2),
   };
 }
@@ -143,6 +157,14 @@ function createInitialScoreState(): ScoreState {
     lastMatchSecond: null,
     history: [],
   };
+}
+
+function createGameSessionId() {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+    return crypto.randomUUID();
+  }
+
+  return `game-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
 function createBoardStateFromSave(save: CurrentGameSave) {
@@ -251,6 +273,7 @@ export function MahjongBoard({
   persistGame = false,
   restartEnabled = true,
   showDifficultySelector = true,
+  tournamentResultMode = false,
 }: {
   compact?: boolean;
   initialTiles?: readonly MahjongTileModel[];
@@ -265,6 +288,7 @@ export function MahjongBoard({
   persistGame?: boolean;
   restartEnabled?: boolean;
   showDifficultySelector?: boolean;
+  tournamentResultMode?: boolean;
 }) {
   const gameShellRef = useRef<HTMLDivElement | null>(null);
   const saveTimeoutRef = useRef<number | null>(null);
@@ -275,23 +299,23 @@ export function MahjongBoard({
   const lostNotifiedRef = useRef(false);
   const terminalSnapshotEmittedRef = useRef(false);
   const resultSoundPlayedRef = useRef(false);
+  const localResultSavedRef = useRef(false);
+  const dealTimeoutRef = useRef<number | null>(null);
+  const hintClearTimeoutRef = useRef<number | null>(null);
+  const coinRewardSavedRef = useRef(Boolean(initialSnapshot?.completed || initialSnapshot?.lost));
+  const sessionIdRef = useRef(createGameSessionId());
+  const sessionStartedAtRef = useRef(new Date().toISOString());
+  const latestLocalSessionRef = useRef<LocalSessionSnapshot | null>(null);
   const latestProgressSnapshotRef = useRef<MahjongBoardProgressSnapshot | null>(null);
   const { user, loading: authLoading } = useAuth();
   const { toast } = useToast();
   const initialDifficulty = lockedDifficulty ?? initialSnapshot?.difficulty ?? "easy";
-  const createFreshBoardState = useCallback(() => {
-    if (initialSnapshot && !restartEnabled) {
-      return createBoardStateFromSnapshot(initialSnapshot);
-    }
-
-    return initialTiles ? createBoardStateFromTiles(initialTiles) : createInitialBoardState();
-  }, [initialSnapshot, initialTiles, restartEnabled]);
   const [state, setState] = useState<BoardState>(() =>
     initialSnapshot
       ? createBoardStateFromSnapshot(initialSnapshot)
       : initialTiles
         ? createBoardStateFromTiles(initialTiles)
-        : createInitialBoardState(),
+        : createInitialBoardState({ mode: "regular", difficulty: initialDifficulty }),
   );
   const [highlightedHint, setHighlightedHint] = useState<string[]>([]);
   const [difficulty, setDifficulty] = useState<Difficulty>(initialDifficulty);
@@ -303,7 +327,17 @@ export function MahjongBoard({
   const [pendingSave, setPendingSave] = useState<CurrentGameSave | null>(null);
   const [saveChecked, setSaveChecked] = useState(!persistGame);
   const [shufflesUsed, setShufflesUsed] = useState(initialSnapshot?.shufflesUsed ?? 0);
+  const [undoUsed, setUndoUsed] = useState(0);
   const [noMovesModalVisible, setNoMovesModalVisible] = useState(false);
+  const [boardAnimationKey, setBoardAnimationKey] = useState(0);
+  const [isDealing, setIsDealing] = useState(false);
+  const [economy, setEconomy] = useState<PlayerEconomy>(() => ({
+    coins: DEFAULT_ECONOMY.coins,
+    gems: DEFAULT_ECONOMY.gems,
+    hints: DEFAULT_ECONOMY.hints,
+    undos: DEFAULT_ECONOMY.undos,
+    updatedAt: new Date().toISOString(),
+  }));
   const { soundEnabled } = useSoundPreference();
   const [scoreState, setScoreState] = useState<ScoreState>(() =>
     initialSnapshot ? createScoreStateFromSnapshot(initialSnapshot) : createInitialScoreState(),
@@ -317,20 +351,50 @@ export function MahjongBoard({
     startMusic,
   } = useSiteAudio();
 
+  const createFreshBoardState = useCallback(() => {
+    if (initialSnapshot && !restartEnabled) {
+      return createBoardStateFromSnapshot(initialSnapshot);
+    }
+
+    return initialTiles
+      ? createBoardStateFromTiles(initialTiles)
+      : createInitialBoardState({ mode: "regular", difficulty: lockedDifficulty ?? difficulty });
+  }, [difficulty, initialSnapshot, initialTiles, lockedDifficulty, restartEnabled]);
+
+  const startDealAnimation = useCallback(() => {
+    if (dealTimeoutRef.current) {
+      window.clearTimeout(dealTimeoutRef.current);
+    }
+
+    setIsDealing(true);
+    setBoardAnimationKey((current) => current + 1);
+    dealTimeoutRef.current = window.setTimeout(() => {
+      dealTimeoutRef.current = null;
+      setIsDealing(false);
+    }, TILE_DEAL_LOCK_MS);
+  }, []);
+
   const activeTiles = useMemo(() => state.tiles.filter((tile) => !tile.removed), [state.tiles]);
   const availableMoves = useMemo(() => findAvailableMoves(state.tiles), [state.tiles]);
+  const dealIndexByTileId = useMemo(() => {
+    return new Map(
+      [...state.tiles]
+        .sort((first, second) => first.z - second.z || first.y - second.y || first.x - second.x || first.id.localeCompare(second.id))
+        .map((tile, index) => [tile.id, index]),
+    );
+  }, [state.tiles]);
   const removedCount = state.tiles.length - activeTiles.length;
   const progress = Math.round((removedCount / Math.max(1, state.tiles.length)) * 100);
   const canUndo = undoEnabled && state.removedPairs.length > 0;
-  const interactionsLocked = isPaused || state.status !== "playing" || Boolean(pendingSave) || !saveChecked;
-  const canShuffle = state.status === "lost" && activeTiles.length > 0 && shufflesUsed < MAX_SHUFFLES;
-  const terminalLost = state.status === "lost" && activeTiles.length > 0 && !canShuffle;
+  const interactionsLocked = isPaused || isDealing || state.status !== "playing" || Boolean(pendingSave) || !saveChecked;
+  const terminalLost = state.status === "lost" && activeTiles.length > 0;
   const comboRemainingSeconds =
     scoreState.lastMatchSecond === null
       ? 0
       : Math.max(0, COMBO_WINDOW_SECONDS - (elapsedSeconds - scoreState.lastMatchSecond));
   const comboProgress = scoreState.lastMatchSecond === null ? 0 : (comboRemainingSeconds / COMBO_WINDOW_SECONDS) * 100;
   const userId = persistGame ? user?.uid : undefined;
+  const canTogglePause = state.status === "playing" && !isDealing && !pendingSave && saveChecked;
 
   const showSaveWarning = useCallback(() => {
     if (saveWarningShownRef.current) {
@@ -386,7 +450,6 @@ export function MahjongBoard({
     ): MahjongBoardProgressSnapshot => {
       const nextShufflesUsed = overrides?.shufflesUsed ?? shufflesUsed;
       const nextActiveTiles = nextState.tiles.filter((tile) => !tile.removed);
-      const nextCanShuffle = nextState.status === "lost" && nextActiveTiles.length > 0 && nextShufflesUsed < MAX_SHUFFLES;
 
       return {
         layoutId: "daily-tournament",
@@ -401,7 +464,7 @@ export function MahjongBoard({
         hintsUsed: overrides?.hintsUsed ?? hintsUsed,
         shufflesUsed: nextShufflesUsed,
         completed: nextState.status === "won",
-        lost: nextState.status === "lost" && nextActiveTiles.length > 0 && !nextCanShuffle,
+        lost: nextState.status === "lost" && nextActiveTiles.length > 0,
       };
     },
     [difficulty, elapsedSeconds, hintsUsed, lockedDifficulty, scoreState, shufflesUsed, state],
@@ -498,6 +561,66 @@ export function MahjongBoard({
   }, [createProgressSnapshot]);
 
   useEffect(() => {
+    latestLocalSessionRef.current = {
+      state,
+      scoreState,
+      difficulty,
+      elapsedSeconds,
+      hintsUsed,
+      undoUsed,
+    };
+  }, [difficulty, elapsedSeconds, hintsUsed, scoreState, state, undoUsed]);
+
+  const resetLocalSession = useCallback(() => {
+    sessionIdRef.current = createGameSessionId();
+    sessionStartedAtRef.current = new Date().toISOString();
+    localResultSavedRef.current = false;
+  }, []);
+
+  const saveGameResult = useCallback(
+    (status: "won" | "lost" | "unfinished", reason: "win" | "no_moves" | "new_game" | "exit" | "restart") => {
+      if (localResultSavedRef.current && status !== "unfinished") {
+        return;
+      }
+
+      const snapshot = latestLocalSessionRef.current;
+
+      if (!snapshot) {
+        return;
+      }
+
+      const matchedPairs = snapshot.state.removedPairs.length;
+      const hasMeaningfulProgress =
+        snapshot.scoreState.score > 0 || matchedPairs > 0 || snapshot.elapsedSeconds > 5;
+
+      if (status === "unfinished" && (!hasMeaningfulProgress || localResultSavedRef.current)) {
+        return;
+      }
+
+      const result = buildGameResultFromState({
+        id: sessionIdRef.current,
+        mode: tournamentResultMode ? "tournament" : "regular",
+        difficulty: snapshot.difficulty,
+        status,
+        reason,
+        score: snapshot.scoreState.score,
+        timeSeconds: snapshot.elapsedSeconds,
+        moves: matchedPairs,
+        matchedPairs,
+        totalPairs: Math.max(1, Math.floor(snapshot.state.tiles.length / 2)),
+        maxCombo: Math.max(0, ...snapshot.scoreState.history.map((move) => move.comboAtMove)),
+        hintsUsed: snapshot.hintsUsed,
+        undoUsed: snapshot.undoUsed,
+        startedAt: sessionStartedAtRef.current,
+      });
+
+      void saveGameResultWithFallback(result, user?.uid);
+      localResultSavedRef.current = true;
+    },
+    [tournamentResultMode, user?.uid],
+  );
+
+  useEffect(() => {
     if ((!initialTiles && !initialSnapshot) || persistGame) {
       return;
     }
@@ -512,6 +635,7 @@ export function MahjongBoard({
     setElapsedSeconds(initialSnapshot?.elapsedSeconds ?? 0);
     setHintsUsed(initialSnapshot?.hintsUsed ?? 0);
     setShufflesUsed(initialSnapshot?.shufflesUsed ?? 0);
+    setUndoUsed(0);
     setDifficulty(lockedDifficulty ?? initialSnapshot?.difficulty ?? "easy");
     setScoreState(nextScoreState);
     completedSavedRef.current = false;
@@ -519,8 +643,52 @@ export function MahjongBoard({
     lostNotifiedRef.current = nextState.status !== "playing";
     terminalSnapshotEmittedRef.current = nextState.status !== "playing";
     resultSoundPlayedRef.current = nextState.status !== "playing";
+    coinRewardSavedRef.current = nextState.status !== "playing";
+    resetLocalSession();
+    localResultSavedRef.current = nextState.status !== "playing";
     setState(nextState);
-  }, [initialSnapshot, initialStateKey, initialTiles, lockedDifficulty, persistGame]);
+  }, [initialSnapshot, initialStateKey, initialTiles, lockedDifficulty, persistGame, resetLocalSession]);
+
+  useEffect(() => {
+    if (authLoading) {
+      return undefined;
+    }
+
+    let cancelled = false;
+    const userIdForEconomy = user?.uid;
+    setEconomy(createDefaultPlayerEconomy(userIdForEconomy));
+
+    const refreshEconomy = () => {
+      void getPlayerEconomy(userIdForEconomy)
+        .then((nextEconomy) => {
+          if (!cancelled) {
+            setEconomy(nextEconomy);
+          }
+        })
+        .catch(() => {
+          if (!cancelled) {
+            setEconomy(createDefaultPlayerEconomy(userIdForEconomy));
+          }
+        });
+    };
+
+    refreshEconomy();
+
+    const handleStorage = (event: StorageEvent) => {
+      if (event.key === ECONOMY_STORAGE_KEY) {
+        refreshEconomy();
+      }
+    };
+
+    window.addEventListener("storage", handleStorage);
+    window.addEventListener(ECONOMY_UPDATED_EVENT, refreshEconomy);
+
+    return () => {
+      cancelled = true;
+      window.removeEventListener("storage", handleStorage);
+      window.removeEventListener(ECONOMY_UPDATED_EVENT, refreshEconomy);
+    };
+  }, [authLoading, user?.uid]);
 
   useEffect(() => {
     setAudioMuted(!soundEnabled);
@@ -529,6 +697,12 @@ export function MahjongBoard({
   useEffect(() => () => {
     if (saveTimeoutRef.current) {
       window.clearTimeout(saveTimeoutRef.current);
+    }
+    if (dealTimeoutRef.current) {
+      window.clearTimeout(dealTimeoutRef.current);
+    }
+    if (hintClearTimeoutRef.current) {
+      window.clearTimeout(hintClearTimeoutRef.current);
     }
   }, []);
 
@@ -626,6 +800,19 @@ export function MahjongBoard({
   }, [persistGame, saveSnapshot]);
 
   useEffect(() => {
+    const saveExitResult = () => {
+      saveGameResult("unfinished", "exit");
+    };
+
+    window.addEventListener("beforeunload", saveExitResult);
+
+    return () => {
+      saveExitResult();
+      window.removeEventListener("beforeunload", saveExitResult);
+    };
+  }, [saveGameResult]);
+
+  useEffect(() => {
     if (!onProgressSnapshot) {
       return undefined;
     }
@@ -653,36 +840,50 @@ export function MahjongBoard({
 
     completedSavedRef.current = true;
 
-    void (async () => {
-      try {
-        await saveCompletedGame(userId, {
-          layoutId: "classic-turtle",
-          difficulty,
-          score: scoreState.score,
-          elapsedSeconds,
-          movesCount: state.removedPairs.length,
-          hintsUsed,
-          shufflesUsed,
-          focusScore: Math.max(0, scoreState.score - hintsUsed * 10),
-        });
-        await clearCurrentGame(userId);
-      } catch (error) {
-        console.warn("Failed to save completed Zen Mahjong game:", error);
-        showSaveWarning();
-      }
-    })();
+    void clearCurrentGame(userId).catch((error) => {
+      console.warn("Failed to clear completed Zen Mahjong save:", error);
+      showSaveWarning();
+    });
   }, [
-    difficulty,
-    elapsedSeconds,
-    hintsUsed,
     persistGame,
-    scoreState.score,
     showSaveWarning,
-    shufflesUsed,
-    state.removedPairs.length,
     state.status,
     userId,
   ]);
+
+  useEffect(() => {
+    if (state.status === "won") {
+      saveGameResult("won", "win");
+      return;
+    }
+
+    if (terminalLost) {
+      saveGameResult("lost", "no_moves");
+    }
+  }, [saveGameResult, state.status, terminalLost]);
+
+  useEffect(() => {
+    if (coinRewardSavedRef.current) {
+      return;
+    }
+
+    const rewardCoins = state.status === "won" ? 100 : terminalLost ? 25 : 0;
+
+    if (rewardCoins <= 0) {
+      return;
+    }
+
+    coinRewardSavedRef.current = true;
+    void updateCoinBalance(rewardCoins, user?.uid)
+      .then(setEconomy)
+      .catch(() => {
+        toast({
+          title: "Монеты не синхронизированы",
+          description: "Награда не была сохранена. Проверьте подключение и попробуйте позже.",
+          variant: "destructive",
+        });
+      });
+  }, [state.status, terminalLost, toast, user?.uid]);
 
   useEffect(() => {
     if (!onGameWon || state.status !== "won" || winNotifiedRef.current) {
@@ -877,14 +1078,49 @@ export function MahjongBoard({
       return;
     }
 
+    if (economy.hints <= 0) {
+      toast({
+        title: "Подсказки закончились",
+        description: "У вас закончились подсказки. Загляните в магазин.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setHighlightedHint([pair.firstId, pair.secondId]);
     setHintsUsed((current) => current + 1);
-    window.setTimeout(() => setHighlightedHint([]), 1800);
+    const economyBeforeHint = economy;
+    setEconomy((current) => ({
+      ...current,
+      hints: Math.max(0, current.hints - 1),
+      updatedAt: new Date().toISOString(),
+    }));
+    void updateHintBalance(-1, user?.uid)
+      .then(setEconomy)
+      .catch(() => {
+        setEconomy(economyBeforeHint);
+        toast({
+          title: "Подсказка не синхронизирована",
+          description: "Баланс не был сохранён. Проверьте подключение и попробуйте позже.",
+          variant: "destructive",
+        });
+      });
+    if (hintClearTimeoutRef.current) {
+      window.clearTimeout(hintClearTimeoutRef.current);
+    }
+    hintClearTimeoutRef.current = window.setTimeout(() => {
+      hintClearTimeoutRef.current = null;
+      setHighlightedHint([]);
+    }, 1800);
   }
 
   function handleRestart() {
     if (!restartEnabled) {
       return;
+    }
+
+    if (state.status === "playing") {
+      saveGameResult("unfinished", "new_game");
     }
 
     startMusic();
@@ -895,6 +1131,7 @@ export function MahjongBoard({
     setElapsedSeconds(0);
     setHintsUsed(0);
     setShufflesUsed(0);
+    setUndoUsed(0);
     setScoreState(createInitialScoreState());
     const nextState = createFreshBoardState();
     completedSavedRef.current = false;
@@ -902,7 +1139,10 @@ export function MahjongBoard({
     lostNotifiedRef.current = false;
     terminalSnapshotEmittedRef.current = false;
     resultSoundPlayedRef.current = false;
+    coinRewardSavedRef.current = false;
+    resetLocalSession();
     setState(nextState);
+    startDealAnimation();
 
     if (userId) {
       void clearCurrentGame(userId).catch((error) => {
@@ -922,6 +1162,15 @@ export function MahjongBoard({
     const lastPair = state.removedPairs.at(-1);
 
     if (!lastPair) {
+      return;
+    }
+
+    if (economy.undos <= 0) {
+      toast({
+        title: "Отмены закончились",
+        description: "У вас закончились отмены. Загляните в магазин.",
+        variant: "destructive",
+      });
       return;
     }
 
@@ -950,6 +1199,23 @@ export function MahjongBoard({
 
     setState(nextState);
     setScoreState(nextScoreState);
+    setUndoUsed((current) => current + 1);
+    const economyBeforeUndo = economy;
+    setEconomy((current) => ({
+      ...current,
+      undos: Math.max(0, current.undos - 1),
+      updatedAt: new Date().toISOString(),
+    }));
+    void updateUndoBalance(-1, user?.uid)
+      .then(setEconomy)
+      .catch(() => {
+        setEconomy(economyBeforeUndo);
+        toast({
+          title: "Отмена не синхронизирована",
+          description: "Баланс не был сохранён. Проверьте подключение и попробуйте позже.",
+          variant: "destructive",
+        });
+      });
     queueSave(createSaveInput(nextState, nextScoreState));
     emitProgressSnapshot("manual", nextState, nextScoreState);
   }
@@ -984,7 +1250,7 @@ export function MahjongBoard({
   }
 
   function togglePause() {
-    if (state.status !== "playing" || pendingSave || !saveChecked) {
+    if (!canTogglePause) {
       return;
     }
 
@@ -1011,12 +1277,16 @@ export function MahjongBoard({
     lostNotifiedRef.current = nextState.status !== "playing";
     terminalSnapshotEmittedRef.current = nextState.status !== "playing";
     resultSoundPlayedRef.current = nextState.status !== "playing";
+    coinRewardSavedRef.current = nextState.status !== "playing";
+    resetLocalSession();
+    localResultSavedRef.current = nextState.status !== "playing";
     setState(nextState);
     setDifficulty(pendingSave.difficulty);
     setScoreState(nextScoreState);
     setElapsedSeconds(pendingSave.elapsedSeconds);
     setHintsUsed(pendingSave.hintsUsed);
     setShufflesUsed(pendingSave.shufflesUsed);
+    setUndoUsed(0);
     setHighlightedHint([]);
     setCoachOpen(false);
     setPendingSave(null);
@@ -1033,6 +1303,33 @@ export function MahjongBoard({
   }
 
   function handleStartFreshFromSave() {
+    if (pendingSave) {
+      const savedRemovedPairs = Math.floor(pendingSave.removedTileIds.length / 2);
+      const hasMeaningfulSavedProgress = pendingSave.score > 0 || savedRemovedPairs > 0 || pendingSave.elapsedSeconds > 5;
+
+      if (hasMeaningfulSavedProgress) {
+        void saveGameResultWithFallback(
+          buildGameResultFromState({
+            id: sessionIdRef.current,
+            mode: tournamentResultMode ? "tournament" : "regular",
+            difficulty: pendingSave.difficulty,
+            status: "unfinished",
+            reason: "restart",
+            score: pendingSave.score,
+            timeSeconds: pendingSave.elapsedSeconds,
+            moves: savedRemovedPairs,
+            matchedPairs: savedRemovedPairs,
+            totalPairs: Math.max(1, Math.floor(pendingSave.tiles.length / 2)),
+            maxCombo: Math.max(0, ...pendingSave.undoStack.map((move) => move.comboAtMove ?? 0)),
+            hintsUsed: pendingSave.hintsUsed,
+            undoUsed,
+            startedAt: sessionStartedAtRef.current,
+          }),
+          user?.uid,
+        );
+      }
+    }
+
     const nextState = createFreshBoardState();
     const nextScoreState = createInitialScoreState();
 
@@ -1041,12 +1338,16 @@ export function MahjongBoard({
     lostNotifiedRef.current = false;
     terminalSnapshotEmittedRef.current = false;
     resultSoundPlayedRef.current = false;
+    coinRewardSavedRef.current = false;
+    resetLocalSession();
     setState(nextState);
+    startDealAnimation();
     setDifficulty(lockedDifficulty ?? "easy");
     setScoreState(nextScoreState);
     setElapsedSeconds(0);
     setHintsUsed(0);
     setShufflesUsed(0);
+    setUndoUsed(0);
     setHighlightedHint([]);
     setCoachOpen(false);
     setPendingSave(null);
@@ -1060,48 +1361,23 @@ export function MahjongBoard({
     }
   }
 
-  function handleShuffleFromGameOver() {
-    if (!canShuffle) {
-      return;
-    }
-
-    startMusic();
-    setHighlightedHint([]);
-    setNoMovesModalVisible(false);
-
-    const nextState = shuffleRemainingTiles(state);
-    const nextShufflesUsed = shufflesUsed + 1;
-
-    if (nextState.status === "playing") {
-      resultSoundPlayedRef.current = false;
-      lostNotifiedRef.current = false;
-      terminalSnapshotEmittedRef.current = false;
-    }
-
-    setShufflesUsed(nextShufflesUsed);
-    setState(nextState);
-    queueSave({
-      ...createSaveInput(nextState, scoreState),
-      shufflesUsed: nextShufflesUsed,
-    });
-    emitProgressSnapshot("shuffle", nextState, scoreState, { shufflesUsed: nextShufflesUsed });
-  }
-
   return (
     <div
       ref={gameShellRef}
       className={cn(
-        "relative overflow-hidden rounded-2xl border border-primary/20 bg-gradient-to-br from-card to-background-mid p-4 shadow-glass md:p-6",
+        "mahjong-game-shell relative overflow-hidden rounded-xl border border-primary/20 bg-gradient-to-br from-card to-background-mid p-2 shadow-glass sm:p-3 md:rounded-2xl md:p-6",
         "fullscreen:rounded-none fullscreen:border-0 fullscreen:bg-[#0E0E10]",
         isFullscreen ? "flex h-screen w-screen flex-col rounded-none border-0 bg-[#0E0E10] p-3 sm:p-4 md:p-5" : null,
-        compact ? "min-h-[360px]" : "min-h-[560px]",
+        compact ? "min-h-[360px]" : "min-h-[calc(100svh-96px)] md:min-h-[560px]",
       )}
     >
       <div className="absolute inset-0 bg-zen-radial" />
-      <div className="relative z-10 mb-4 grid gap-3 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-center">
-        <div className="grid grid-cols-3 gap-2 sm:gap-3">
+      <div className="relative z-10 mb-2 grid gap-2 md:mb-4 md:gap-3 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-center">
+        <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3 xl:grid-cols-5 sm:gap-2 md:gap-3">
           <GameStatCard icon={<Clock3 />} label="Время" value={formatElapsedTime(elapsedSeconds)} />
           <GameStatCard icon={<Star />} label="Очки" value={scoreState.score.toLocaleString("ru-RU")} />
+          <GameStatCard icon={<Lightbulb />} label="Подсказки" value={economy.hints.toLocaleString("ru-RU")} />
+          <GameStatCard icon={<RotateCcw />} label="Отмены" value={economy.undos.toLocaleString("ru-RU")} />
           <GameStatCard
             label="Комбо"
             value={`x${scoreState.combo}`}
@@ -1133,9 +1409,9 @@ export function MahjongBoard({
           <button
             type="button"
             onClick={togglePause}
-            disabled={state.status !== "playing" || Boolean(pendingSave) || !saveChecked}
+            disabled={!canTogglePause}
             className={cn(
-              "inline-flex min-h-10 items-center gap-2 rounded-lg border border-primary/20 bg-card/85 px-3 py-2 text-sm font-bold transition hover:border-primary/45 hover:bg-popover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
+              "hidden min-h-10 items-center gap-2 rounded-lg border border-primary/20 bg-card/85 px-3 py-2 text-sm font-bold transition hover:border-primary/45 hover:bg-popover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary lg:inline-flex",
               "disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:border-primary/20 disabled:hover:bg-card/85",
               isPaused ? "border-primary/55 bg-primary/15 text-primary" : "text-foreground",
             )}
@@ -1148,7 +1424,7 @@ export function MahjongBoard({
 
       <div
         className={cn(
-          "relative z-10 grid min-h-0 flex-1 gap-4 lg:grid-cols-[minmax(0,1fr)_148px]",
+          "relative z-10 grid min-h-0 flex-1 gap-2 md:gap-4 lg:grid-cols-[minmax(0,1fr)_148px]",
           isFullscreen ? "lg:grid-cols-[minmax(0,1fr)_132px]" : null,
         )}
       >
@@ -1159,26 +1435,36 @@ export function MahjongBoard({
               : { opacity: 1, x: 0 }
           }
           transition={{ duration: noMovesModalVisible ? 0.44 : 0.2, ease: "easeOut" }}
-          className="relative flex min-h-0 items-center justify-center overflow-hidden rounded-xl border border-primary/10 bg-black/20 p-2 sm:p-3"
+          className="relative flex min-h-0 items-center justify-center overflow-hidden rounded-lg border border-primary/10 bg-black/20 p-0.5 sm:p-2 md:rounded-xl md:p-3"
         >
           <div
-            className={cn("relative w-full max-w-[940px]", isFullscreen ? "max-w-none" : null)}
-            style={{
-              aspectRatio: `${BOARD_WIDTH} / ${BOARD_HEIGHT}`,
-              width: isFullscreen ? `min(100%, calc((100vh - 178px) * ${BOARD_WIDTH / BOARD_HEIGHT}))` : "100%",
-            }}
+            className={cn("mahjong-board-stage relative mx-auto max-w-full select-none", isFullscreen ? "max-w-none" : null)}
           >
             <AnimatePresence>
               {state.tiles.map((tile) =>
                 tile.removed ? null : (
                   <motion.div
-                    key={tile.id}
-                    className="absolute aspect-[7/10]"
+                    key={`${boardAnimationKey}:${tile.id}`}
+                    className="absolute"
                     style={getTileStyle(tile)}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
+                    initial={
+                      boardAnimationKey > 0
+                        ? { opacity: 0, scale: 0.85, y: -20 }
+                        : { opacity: 0, scale: 0.96, y: 10 }
+                    }
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
                     exit={{ opacity: 0, scale: 0.82, y: -8 }}
-                    transition={{ duration: 0.22, ease: "easeOut" }}
+                    transition={{
+                      duration: boardAnimationKey > 0 ? TILE_DEAL_DURATION_SECONDS : 0.22,
+                      delay:
+                        boardAnimationKey > 0
+                          ? Math.min(
+                              (dealIndexByTileId.get(tile.id) ?? 0) * TILE_DEAL_DELAY_STEP_SECONDS,
+                              TILE_DEAL_MAX_DELAY_SECONDS,
+                            )
+                          : 0,
+                      ease: "easeOut",
+                    }}
                   >
                     <TileWithAvailability
                       tile={tile}
@@ -1215,22 +1501,27 @@ export function MahjongBoard({
           availablePairsCount={availableMoves.length}
           canUndo={canUndo}
           coachOpen={coachOpen}
+          hintCount={economy.hints}
           hintHidden={!hintsEnabled || difficulty === "hard"}
           isFullscreen={isFullscreen}
           paused={interactionsLocked}
+          undoCount={economy.undos}
           onCoachToggle={() => setCoachOpen((current) => !current)}
           onFullscreenToggle={toggleFullscreen}
           onHint={handleHint}
+          onPauseToggle={togglePause}
           onRestart={handleRestart}
           onUndo={handleUndo}
+          pauseDisabled={!canTogglePause}
+          pausedByUser={isPaused}
           removedPairsCount={state.removedPairs.length}
           restartEnabled={restartEnabled}
           undoHidden={!undoEnabled}
         />
       </div>
 
-      <div className="relative z-10 mt-4">
-        <div className="mb-2 flex justify-between text-sm">
+      <div className="relative z-10 mt-2 pb-20 md:mt-4 md:pb-0">
+        <div className="mb-2 flex justify-between text-xs sm:text-sm">
           <span className="text-muted-foreground">Прогресс</span>
           <span className="text-primary">
             {removedCount}/144 собрано ·{" "}
@@ -1271,19 +1562,27 @@ export function MahjongBoard({
         ) : null}
         {noMovesModalVisible ? (
           <GameOverModal
-            canShuffle={canShuffle}
-            shufflesRemaining={Math.max(0, MAX_SHUFFLES - shufflesUsed)}
             onNewGame={restartEnabled ? handleRestart : undefined}
-            onShuffle={handleShuffleFromGameOver}
           />
         ) : null}
-        {state.status === "won" ? <VictoryModal onNewGame={restartEnabled ? handleRestart : undefined} /> : null}
+        {state.status === "won" ? (
+          <VictoryModal
+            onNewGame={restartEnabled ? handleRestart : undefined}
+            tournamentResultMode={tournamentResultMode}
+          />
+        ) : null}
       </AnimatePresence>
     </div>
   );
 }
 
-function VictoryModal({ onNewGame }: { onNewGame?: () => void }) {
+function VictoryModal({
+  onNewGame,
+  tournamentResultMode = false,
+}: {
+  onNewGame?: () => void;
+  tournamentResultMode?: boolean;
+}) {
   return (
     <motion.div
       className="absolute inset-0 z-[1250] grid place-items-center bg-background/68 p-4 backdrop-blur-md"
@@ -1308,9 +1607,23 @@ function VictoryModal({ onNewGame }: { onNewGame?: () => void }) {
             Победа
           </h2>
           <p className="mx-auto mt-3 max-w-sm text-sm leading-6 text-muted-foreground">
-            Все плитки убраны с поля.
+            {tournamentResultMode && !onNewGame ? "Турнир на сегодня завершён." : "Все плитки убраны с поля."}
           </p>
-          <div className={cn("mt-7 grid gap-3", onNewGame ? "sm:grid-cols-2" : "sm:grid-cols-1")}>
+          <div
+            className={cn(
+              "mt-7 grid gap-3",
+              tournamentResultMode ? (onNewGame ? "sm:grid-cols-3" : "sm:grid-cols-2") : onNewGame ? "sm:grid-cols-2" : "sm:grid-cols-1",
+            )}
+          >
+            {tournamentResultMode ? (
+              <Link
+                href="/leaderboard"
+                className="inline-flex min-h-12 items-center justify-center gap-2 rounded-lg border border-primary/35 bg-primary/14 px-4 py-3 text-sm font-bold text-primary transition hover:border-primary/60 hover:bg-primary/20"
+              >
+                <Trophy className="size-4" />
+                Посмотреть рейтинг
+              </Link>
+            ) : null}
             {onNewGame ? (
               <button
                 type="button"
@@ -1318,7 +1631,7 @@ function VictoryModal({ onNewGame }: { onNewGame?: () => void }) {
                 className="inline-flex min-h-12 items-center justify-center gap-2 rounded-lg bg-zen-cta px-4 py-3 font-display text-sm font-black uppercase tracking-[0.08em] text-primary-foreground shadow-[0_0_26px_rgba(255,107,53,0.28)] transition hover:brightness-110"
               >
                 <RotateCcw className="size-4" />
-                Новая игра
+                {tournamentResultMode ? "Играть снова" : "Новая игра"}
               </button>
             ) : null}
             <Link
@@ -1326,7 +1639,7 @@ function VictoryModal({ onNewGame }: { onNewGame?: () => void }) {
               className="inline-flex min-h-12 items-center justify-center gap-2 rounded-lg border border-purple-energy/35 bg-purple-energy/12 px-4 py-3 text-sm font-bold text-foreground transition hover:border-purple-energy/60 hover:bg-purple-energy/18"
             >
               <Home className="size-4" />
-              На главную
+              {tournamentResultMode ? "На дэшборд" : "На главную"}
             </Link>
           </div>
         </div>
@@ -1349,7 +1662,7 @@ function SavedGamePrompt({
 
   return (
     <motion.div
-      className="absolute inset-0 z-[1200] grid place-items-center bg-background/65 p-4 backdrop-blur-md"
+      className="absolute inset-0 z-[1200] grid place-items-center bg-black/70 p-3 backdrop-blur-2xl sm:p-4"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
@@ -1358,24 +1671,26 @@ function SavedGamePrompt({
         initial={{ scale: 0.96, y: 12 }}
         animate={{ scale: 1, y: 0 }}
         exit={{ scale: 0.96, y: 12 }}
-        className="w-full max-w-md rounded-2xl border border-primary/25 bg-card/95 p-6 shadow-glass"
+        className="w-full max-w-md rounded-2xl border border-primary/35 bg-[#0f0f12]/90 p-5 shadow-[0_32px_120px_rgba(0,0,0,0.82),0_0_42px_rgba(255,107,53,0.14)] backdrop-blur-2xl sm:p-6"
       >
-        <p className="text-xs font-bold uppercase tracking-[0.22em] text-primary">Сохранение найдено</p>
+        <p className="text-xs font-bold uppercase tracking-[0.22em] text-primary drop-shadow-[0_0_18px_rgba(255,107,53,0.32)]">
+          Сохранение найдено
+        </p>
         <h2 className="mt-3 font-display text-3xl font-black uppercase tracking-[0.06em] text-foreground">
           У вас есть незавершённая игра
         </h2>
-        <div className="mt-5 grid grid-cols-3 gap-3 rounded-xl border border-primary/10 bg-popover/70 p-3 text-center">
+        <div className="mt-5 grid grid-cols-3 gap-3 rounded-xl border border-primary/25 bg-[#0a0a0c]/75 p-3 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_18px_48px_rgba(0,0,0,0.36)]">
           <div>
-            <p className="text-xs text-muted-foreground">Прогресс</p>
-            <p className="font-bold text-primary">{progress}%</p>
+            <p className="text-xs font-semibold text-foreground/70">Прогресс</p>
+            <p className="mt-1 font-bold text-primary">{progress}%</p>
           </div>
           <div>
-            <p className="text-xs text-muted-foreground">Очки</p>
-            <p className="font-bold">{save.score}</p>
+            <p className="text-xs font-semibold text-foreground/70">Очки</p>
+            <p className="mt-1 font-bold text-foreground">{save.score}</p>
           </div>
           <div>
-            <p className="text-xs text-muted-foreground">Время</p>
-            <p className="font-bold">{formatGameTime(save.elapsedSeconds)}</p>
+            <p className="text-xs font-semibold text-foreground/70">Время</p>
+            <p className="mt-1 font-bold text-foreground">{formatGameTime(save.elapsedSeconds)}</p>
           </div>
         </div>
         <div className="mt-6 grid gap-3 sm:grid-cols-2">
@@ -1389,9 +1704,9 @@ function SavedGamePrompt({
           <button
             type="button"
             onClick={onStartFresh}
-            className="rounded-lg border border-primary/25 bg-popover px-4 py-3 text-sm font-bold text-foreground transition hover:border-primary/50"
+            className="rounded-lg border border-primary/30 bg-[#161616]/95 px-4 py-3 text-sm font-bold text-foreground shadow-[0_14px_38px_rgba(0,0,0,0.32)] transition hover:border-primary/55 hover:bg-[#1d1d1f]"
           >
-            Начать заново
+            Новая игра
           </button>
         </div>
       </motion.div>
@@ -1400,15 +1715,9 @@ function SavedGamePrompt({
 }
 
 function GameOverModal({
-  canShuffle,
   onNewGame,
-  onShuffle,
-  shufflesRemaining,
 }: {
-  canShuffle: boolean;
   onNewGame?: () => void;
-  onShuffle: () => void;
-  shufflesRemaining: number;
 }) {
   return (
     <motion.div
@@ -1436,17 +1745,7 @@ function GameOverModal({
           <p className="mx-auto mt-3 max-w-sm text-sm leading-6 text-muted-foreground">
             На поле не осталось доступных пар.
           </p>
-          <div className={cn("mt-7 grid gap-3", onNewGame ? "sm:grid-cols-3" : "sm:grid-cols-2")}>
-            <button
-              type="button"
-              onClick={onShuffle}
-              disabled={!canShuffle}
-              className="inline-flex min-h-12 items-center justify-center gap-2 rounded-lg border border-primary/30 bg-primary/15 px-4 py-3 text-sm font-bold text-primary transition hover:border-primary/60 hover:bg-primary/20 disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:border-primary/30 disabled:hover:bg-primary/15"
-              title={shufflesRemaining > 0 ? `Осталось: ${shufflesRemaining}` : "Перемешивания закончились"}
-            >
-              <Shuffle className="size-4" />
-              Перемешать
-            </button>
+          <div className={cn("mt-7 grid gap-3", onNewGame ? "sm:grid-cols-2" : "sm:grid-cols-1")}>
             {onNewGame ? (
               <button
                 type="button"
@@ -1485,21 +1784,21 @@ function GameStatCard({
   value: string;
 }) {
   return (
-    <div className="relative overflow-hidden rounded-xl border border-primary/15 bg-popover/70 px-3 py-2 shadow-[0_10px_30px_rgba(0,0,0,0.2)] backdrop-blur-md">
-      <div className="flex items-center gap-2 text-xs uppercase tracking-[0.14em] text-muted-foreground">
-        {icon ? <span className="text-primary [&_svg]:size-4">{icon}</span> : null}
+    <div className="relative min-w-0 overflow-hidden rounded-lg border border-primary/15 bg-popover/70 px-2 py-1.5 shadow-[0_10px_30px_rgba(0,0,0,0.2)] backdrop-blur-md md:rounded-xl md:px-3 md:py-2">
+      <div className="flex items-center gap-1.5 truncate text-[10px] uppercase tracking-[0.1em] text-muted-foreground sm:text-xs md:gap-2 md:tracking-[0.14em]">
+        {icon ? <span className="text-primary [&_svg]:size-3.5 md:[&_svg]:size-4">{icon}</span> : null}
         {label}
       </div>
       <motion.p
         key={pulseKey ?? value}
         initial={{ scale: 0.96, opacity: 0.72 }}
         animate={{ scale: 1, opacity: 1 }}
-        className="mt-1 font-display text-lg font-black uppercase tracking-[0.04em] text-foreground sm:text-2xl"
+        className="mt-0.5 truncate font-display text-base font-black uppercase tracking-[0.04em] text-foreground sm:text-xl md:mt-1 md:text-2xl"
       >
         {value}
       </motion.p>
       {typeof progress === "number" ? (
-        <div className="mt-2 h-1 overflow-hidden rounded-full bg-muted">
+        <div className="mt-1 h-1 overflow-hidden rounded-full bg-muted md:mt-2">
           <motion.div className="h-full bg-zen-cta" animate={{ width: `${progress}%` }} transition={{ duration: 0.2 }} />
         </div>
       ) : null}
@@ -1511,38 +1810,59 @@ function GameActionDock({
   availablePairsCount,
   canUndo,
   coachOpen,
+  hintCount,
   hintHidden,
   isFullscreen,
   paused,
   onCoachToggle,
   onFullscreenToggle,
   onHint,
+  onPauseToggle,
   onRestart,
   onUndo,
+  pauseDisabled,
+  pausedByUser,
   removedPairsCount,
   restartEnabled,
+  undoCount,
   undoHidden,
 }: {
   availablePairsCount: number;
   canUndo: boolean;
   coachOpen: boolean;
+  hintCount: number;
   hintHidden: boolean;
   isFullscreen: boolean;
   paused: boolean;
   onCoachToggle: () => void;
   onFullscreenToggle: () => void;
   onHint: () => void;
+  onPauseToggle: () => void;
   onRestart: () => void;
   onUndo: () => void;
+  pauseDisabled: boolean;
+  pausedByUser: boolean;
   removedPairsCount: number;
   restartEnabled: boolean;
+  undoCount: number;
   undoHidden: boolean;
 }) {
+  const hintLabel = hintCount <= 0 ? "Нет подсказок" : `Подсказка · ${hintCount}`;
+  const undoLabel = undoCount <= 0 ? "Нет отмен" : `Отмена · ${undoCount}`;
+
   return (
-    <aside className="flex min-w-0 flex-col gap-3">
-      <div className="flex gap-3 overflow-x-auto rounded-xl border border-primary/10 bg-black/20 p-2 lg:flex-col lg:overflow-visible">
+    <aside className="sticky bottom-20 z-30 -mx-1 flex min-w-0 flex-col gap-2 lg:static lg:mx-0 lg:gap-3">
+      <div className="flex gap-2 overflow-x-auto rounded-xl border border-primary/15 bg-card/92 p-1.5 shadow-glass backdrop-blur-xl lg:flex-col lg:gap-3 lg:bg-black/20 lg:p-2 lg:shadow-none lg:backdrop-blur-none lg:overflow-visible">
         <GameActionButton
-          label="Подсказка"
+          label={pausedByUser ? "Старт" : "Пауза"}
+          icon={pausedByUser ? <Play /> : <Pause />}
+          onClick={onPauseToggle}
+          disabled={pauseDisabled}
+          active={pausedByUser}
+          className="lg:min-h-24"
+        />
+        <GameActionButton
+          label={hintLabel}
           icon={<Lightbulb />}
           onClick={onHint}
           hidden={hintHidden}
@@ -1551,7 +1871,7 @@ function GameActionDock({
         />
         {undoHidden ? null : (
           <GameActionButton
-            label="Отмена"
+            label={undoLabel}
             icon={<RotateCcw />}
             onClick={onUndo}
             disabled={paused || !canUndo}
@@ -1597,7 +1917,7 @@ function GameActionDock({
           type="button"
           onClick={onRestart}
           disabled={paused}
-          className="rounded-lg border border-primary/15 bg-popover/70 px-3 py-2 text-xs font-bold text-muted-foreground transition hover:border-primary/40 hover:text-primary disabled:cursor-not-allowed disabled:opacity-40"
+          className="hidden rounded-lg border border-primary/15 bg-popover/70 px-3 py-2 text-xs font-bold text-muted-foreground transition hover:border-primary/40 hover:text-primary disabled:cursor-not-allowed disabled:opacity-40 lg:block"
         >
           Заново
         </button>

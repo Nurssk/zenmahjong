@@ -20,6 +20,11 @@ import {
   saveTournamentProgress,
   type TournamentSaveState,
 } from "@/src/lib/tournament/tournament-save";
+import {
+  saveTournamentScoreFirestore,
+  saveTournamentScoreLocal,
+  type SavedTournamentScore,
+} from "@/src/lib/leaderboard/leaderboard-service";
 import { saveTournamentResult } from "@/src/lib/tournament/save-result";
 
 function getSecondsUntilNextDailyReset() {
@@ -65,9 +70,32 @@ export default function TournamentPage() {
   );
   const resetProgress = ((86400 - secondsUntilReset) / 86400) * 100;
 
+  const persistTournamentScore = useCallback(
+    (result: Pick<MahjongBoardProgressSnapshot, "score" | "elapsedSeconds">, completed = false) => {
+      if (!completed && result.score <= 0) {
+        return;
+      }
+
+      const savedScore: SavedTournamentScore = {
+        ...(user?.uid ? { userId: user.uid } : {}),
+        name: user?.displayName ?? user?.email ?? "Игрок Zen Mahjong",
+        score: result.score,
+        timeSeconds: result.elapsedSeconds,
+        completedAt: new Date().toISOString(),
+        date: tournamentDate,
+        mode: "tournament",
+      };
+
+      saveTournamentScoreLocal(savedScore);
+      void saveTournamentScoreFirestore(savedScore);
+    },
+    [tournamentDate, user],
+  );
+
   const persistTournamentSnapshot = useCallback(
     (snapshot: MahjongBoardProgressSnapshot) => {
       latestSnapshotRef.current = snapshot;
+      persistTournamentScore(snapshot, snapshot.completed);
 
       if (!user) {
         return;
@@ -110,11 +138,19 @@ export default function TournamentPage() {
           });
         });
     },
-    [toast, tournamentDate, user],
+    [persistTournamentScore, toast, tournamentDate, user],
   );
 
   const handleTournamentWin = useCallback(
     async (stats: GameWinStats) => {
+      persistTournamentScore(
+        {
+          score: stats.score,
+          elapsedSeconds: stats.elapsedSeconds,
+        },
+        true,
+      );
+
       if (!user) {
         toast({
           title: "Войдите, чтобы сохранить результат",
@@ -167,7 +203,7 @@ export default function TournamentPage() {
         });
       }
     },
-    [toast, tournamentDate, user],
+    [persistTournamentScore, toast, tournamentDate, user],
   );
 
   const handleTournamentLoss = useCallback(
@@ -232,6 +268,23 @@ export default function TournamentPage() {
   }, [startMusic, stopMusic]);
 
   useEffect(() => {
+    const saveLatestLocalScore = () => {
+      const snapshot = latestSnapshotRef.current;
+
+      if (snapshot) {
+        persistTournamentScore(snapshot, snapshot.completed);
+      }
+    };
+
+    window.addEventListener("beforeunload", saveLatestLocalScore);
+
+    return () => {
+      saveLatestLocalScore();
+      window.removeEventListener("beforeunload", saveLatestLocalScore);
+    };
+  }, [persistTournamentScore]);
+
+  useEffect(() => {
     const intervalId = window.setInterval(() => {
       const nextSeconds = getSecondsUntilNextDailyReset();
       setSecondsUntilReset(nextSeconds);
@@ -250,47 +303,59 @@ export default function TournamentPage() {
     <ProtectedRoute>
       <AppShell activePath="/leaderboard">
         <MotionShell>
-          <div className="mx-auto flex max-w-7xl flex-col gap-6">
-            <section className="relative overflow-hidden rounded-2xl border border-primary/20 bg-gradient-to-br from-card via-background-mid to-[#13091d] p-5 shadow-glass md:p-7">
+          <div className="mx-auto flex max-w-7xl flex-col gap-3 md:gap-6">
+            <section className="relative overflow-hidden rounded-xl border border-primary/20 bg-gradient-to-br from-card via-background-mid to-[#13091d] p-3 shadow-glass md:rounded-2xl md:p-7">
               <div className="absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-primary/80 to-transparent" />
-              <div className="relative grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px] xl:items-end">
+              <div className="relative grid gap-3 xl:grid-cols-[minmax(0,1fr)_360px] xl:items-end">
                 <div>
-                  <div className="mb-4 inline-flex items-center gap-2 rounded-lg border border-purple-energy/35 bg-purple-energy/12 px-3 py-2 text-xs font-black uppercase tracking-[0.18em] text-purple-energy shadow-premium">
+                  <div className="mb-2 inline-flex items-center gap-2 rounded-lg border border-purple-energy/35 bg-purple-energy/12 px-2.5 py-1.5 text-[10px] font-black uppercase tracking-[0.16em] text-purple-energy shadow-premium md:mb-4 md:px-3 md:py-2 md:text-xs">
                     <Trophy className="size-4" />
                     Daily Tournament
                   </div>
-                  <h1 className="font-display text-4xl font-black uppercase tracking-[0.05em] text-zen-gradient md:text-6xl">
+                  <h1 className="font-display text-2xl font-black uppercase tracking-[0.05em] text-zen-gradient sm:text-3xl md:text-6xl">
                     Ежедневный турнир
                   </h1>
-                  <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground md:text-base">
+                  <p className="mt-2 hidden max-w-2xl text-sm leading-6 text-muted-foreground md:block md:text-base">
                     Один детерминированный расклад для всех игроков. Собери доску быстрее, сохрани комбо и подготовься
                     к таблице лидеров следующего этапа.
                   </p>
                 </div>
 
-                <div className="rounded-xl border border-primary/20 bg-popover/75 p-4 shadow-[0_18px_60px_rgba(0,0,0,0.32)] backdrop-blur-xl">
+                <div className="rounded-xl border border-primary/20 bg-popover/75 p-3 shadow-[0_18px_60px_rgba(0,0,0,0.32)] backdrop-blur-xl md:p-4">
                   <div className="flex items-center gap-3 text-sm text-muted-foreground">
                     <CalendarDays className="size-4 text-primary" />
                     {formatTournamentDate(tournamentDate)}
                   </div>
-                  <p className="mt-3 text-xs font-bold uppercase tracking-[0.18em] text-purple-energy">
+                  <p className="mt-2 text-[10px] font-bold uppercase tracking-[0.16em] text-purple-energy md:mt-3 md:text-xs md:tracking-[0.18em]">
                     Следующая раскладка через
                   </p>
-                  <p className="mt-1 font-display text-3xl font-black tracking-[0.08em] text-foreground">
+                  <p className="mt-1 font-display text-2xl font-black tracking-[0.08em] text-foreground md:text-3xl">
                     {formatCountdown(secondsUntilReset)}
                   </p>
-                  <Progress value={resetProgress} className="mt-4" />
+                  <Progress value={resetProgress} className="mt-3 md:mt-4" />
                 </div>
               </div>
             </section>
 
-            <section className="grid gap-4 lg:grid-cols-3">
+            <section className="hidden gap-4 md:grid lg:grid-cols-3">
               <TournamentInfoCard icon={<Shield />} label="Сложность" value="Hard Mode" />
               <TournamentInfoCard icon={<Users />} label="Правило дня" value="1 раскладка для всех игроков" />
               <TournamentInfoCard icon={<Flame />} label="Режим" value="Таймер, очки, комбо" />
             </section>
 
-            <section className="rounded-2xl border border-primary/20 bg-[#120a16]/78 p-4 shadow-[0_18px_70px_rgba(0,0,0,0.36)] backdrop-blur-xl md:p-5">
+            <details className="rounded-xl border border-primary/20 bg-[#120a16]/78 p-3 shadow-[0_18px_70px_rgba(0,0,0,0.36)] backdrop-blur-xl md:hidden">
+              <summary className="flex cursor-pointer items-center gap-3 text-sm font-bold text-primary">
+                <Lock className="size-4" />
+                Competitive Rules
+              </summary>
+              <div className="mt-3 grid gap-2 text-sm">
+                <TournamentRule icon={<Shield />} label="Hard Mode" />
+                <TournamentRule icon={<Sparkles />} label="No Hints" />
+                <TournamentRule icon={<Undo2 />} label="No Undo" />
+              </div>
+            </details>
+
+            <section className="hidden rounded-2xl border border-primary/20 bg-[#120a16]/78 p-4 shadow-[0_18px_70px_rgba(0,0,0,0.36)] backdrop-blur-xl md:block md:p-5">
               <div className="flex flex-wrap items-center gap-3">
                 <div className="grid size-10 place-items-center rounded-lg border border-primary/25 bg-primary/12 text-primary">
                   <Lock className="size-5" />
@@ -309,13 +374,13 @@ export default function TournamentPage() {
               </div>
             </section>
 
-            <section className="rounded-2xl border border-purple-energy/20 bg-[#0b0810]/70 p-2 shadow-premium backdrop-blur-xl md:p-3">
-              <div className="mb-3 flex flex-wrap items-center justify-between gap-3 px-2 pt-2 md:px-3">
-                <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.18em] text-primary">
+            <section className="rounded-xl border border-purple-energy/20 bg-[#0b0810]/70 p-1 shadow-premium backdrop-blur-xl md:rounded-2xl md:p-3">
+              <div className="mb-2 flex flex-wrap items-center justify-between gap-2 px-1.5 pt-1.5 md:mb-3 md:px-3 md:pt-2">
+                <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.14em] text-primary md:text-xs md:tracking-[0.18em]">
                   <Sparkles className="size-4" />
                   Турнирная доска · {tournamentDate}
                 </div>
-                <div className="rounded-lg border border-primary/20 bg-primary/10 px-3 py-1.5 text-xs font-bold text-primary">
+                <div className="rounded-lg border border-primary/20 bg-primary/10 px-2 py-1 text-[10px] font-bold text-primary md:px-3 md:py-1.5 md:text-xs">
                   Одинаковая для всех
                 </div>
               </div>
@@ -332,11 +397,12 @@ export default function TournamentPage() {
                   onProgressSnapshot={persistTournamentSnapshot}
                   restartEnabled={false}
                   showDifficultySelector={false}
+                  tournamentResultMode
                 />
               ) : (
-                <div className="grid min-h-[560px] place-items-center rounded-2xl border border-primary/10 bg-black/30 p-6 text-center">
+                <div className="grid min-h-[420px] place-items-center rounded-xl border border-primary/10 bg-black/30 p-4 text-center md:min-h-[560px] md:rounded-2xl md:p-6">
                   <div>
-                    <p className="font-display text-2xl font-black uppercase tracking-[0.08em] text-primary">
+                    <p className="font-display text-xl font-black uppercase tracking-[0.08em] text-primary md:text-2xl">
                       Загружаем турнир
                     </p>
                     <p className="mt-2 text-sm text-muted-foreground">Проверяем прогресс сегодняшней попытки...</p>

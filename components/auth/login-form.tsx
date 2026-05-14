@@ -20,7 +20,7 @@ export function LoginForm() {
 
   return (
     <form
-      className="flex flex-col gap-5"
+      className="flex flex-col gap-4 sm:gap-5"
       onSubmit={async (event) => {
         event.preventDefault();
         setLoading(true);
@@ -58,7 +58,7 @@ export function LoginForm() {
         </Label>
         <Input id="password" name="password" type="password" autoComplete="current-password" required />
       </div>
-      <Button type="submit" size="xl" className="mt-1 w-full" disabled={loading}>
+      <Button type="submit" size="xl" className="mt-1 h-14 w-full text-lg sm:h-20 sm:text-2xl md:text-3xl" disabled={loading}>
         {loading ? "Входим..." : "Войти"}
         <ArrowRight data-icon="inline-end" />
       </Button>

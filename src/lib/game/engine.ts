@@ -4,8 +4,20 @@ import { createTileFaces } from "@/src/lib/game/tile-faces";
 import { shuffleList, shuffleListWithSeed } from "@/src/lib/game/utils";
 import type { BoardState, GameMove, GameStatus, MahjongTileModel } from "@/src/lib/game/types";
 
-export function generateBoard(seed = "zen-mahjong-classic-board"): MahjongTileModel[] {
-  const faces = shuffleListWithSeed(createTileFaces(), seed);
+export type CreateGameOptions = {
+  mode?: "regular" | "daily" | "tournament";
+  difficulty?: "easy" | "medium" | "hard";
+  seed?: string | number;
+};
+
+const DEFAULT_DETERMINISTIC_SEED = "zen-mahjong-classic-board";
+
+export function createRegularGameSeed() {
+  return `regular:${Date.now()}:${Math.random().toString(36).slice(2, 12)}`;
+}
+
+export function generateBoard(seed: string | number = DEFAULT_DETERMINISTIC_SEED): MahjongTileModel[] {
+  const faces = shuffleListWithSeed(createTileFaces(), String(seed));
 
   return CLASSIC_TURTLE_COORDINATES.map((coord, index) => {
     const face = faces[index];
@@ -122,13 +134,14 @@ export function shuffleRemainingTiles(state: BoardState): BoardState {
   };
 }
 
-export function createInitialBoardState(): BoardState {
+export function createInitialBoardState(options: CreateGameOptions = {}): BoardState {
+  const baseSeed = getBoardSeed(options);
   let attempt = 0;
-  let tiles = generateBoard(`zen-mahjong-classic-board-${attempt}`);
+  let tiles = generateBoard(`${baseSeed}-${attempt}`);
   let status = checkGameStatus(tiles);
 
   for (attempt = 1; attempt < 30 && status === "lost"; attempt += 1) {
-    tiles = generateBoard(`zen-mahjong-classic-board-${attempt}`);
+    tiles = generateBoard(`${baseSeed}-${attempt}`);
     status = checkGameStatus(tiles);
   }
 
@@ -141,6 +154,14 @@ export function createInitialBoardState(): BoardState {
     removedPairs: [],
     status,
   };
+}
+
+function getBoardSeed({ mode = "regular", seed }: CreateGameOptions) {
+  if (seed !== undefined) {
+    return String(seed);
+  }
+
+  return mode === "regular" ? createRegularGameSeed() : DEFAULT_DETERMINISTIC_SEED;
 }
 
 function assertClassicTurtleCentralStackAvailability(tiles: readonly MahjongTileModel[]) {

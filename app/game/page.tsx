@@ -12,7 +12,7 @@ export default function GamePage() {
         <div className="relative z-10">
           <GameHeader />
           <MotionShell>
-            <div className="mx-auto max-w-7xl px-4 py-8">
+            <div className="mx-auto max-w-7xl px-1.5 py-2 sm:px-3 md:px-8 md:py-8">
               <MahjongBoard persistGame />
             </div>
           </MotionShell>

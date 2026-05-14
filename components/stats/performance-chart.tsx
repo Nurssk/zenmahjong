@@ -1,98 +1,69 @@
-"use client";
+import { cn } from "@/lib/utils";
+import type { ScoreTrendPoint, WeeklyActivityPoint } from "@/src/lib/stats/stats-types";
 
-import { useEffect, useState } from "react";
-import {
-  Area,
-  AreaChart,
-  Bar,
-  BarChart,
-  CartesianGrid,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
-
-const scoreData = [
-  { day: "Пн", score: 9200, wins: 4 },
-  { day: "Вт", score: 11400, wins: 5 },
-  { day: "Ср", score: 9800, wins: 3 },
-  { day: "Чт", score: 13800, wins: 6 },
-  { day: "Пт", score: 15100, wins: 7 },
-  { day: "Сб", score: 17600, wins: 8 },
-  { day: "Вс", score: 18420, wins: 9 },
-];
-
-const tooltipStyle = {
-  background: "#151515",
-  border: "1px solid rgba(255, 136, 0, 0.25)",
-  borderRadius: "12px",
-  color: "#e8e8e8",
-};
-
-export function PerformanceChart() {
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+export function PerformanceChart({
+  scoreTrend,
+  weeklyActivity,
+}: {
+  scoreTrend: ScoreTrendPoint[];
+  weeklyActivity: WeeklyActivityPoint[];
+}) {
+  const maxScore = Math.max(1, ...scoreTrend.map((point) => point.score));
+  const maxGames = Math.max(1, ...weeklyActivity.map((point) => point.games));
 
   return (
     <div className="grid gap-4 xl:grid-cols-[1.4fr_0.8fr]">
-      <div className="rounded-2xl border border-primary/15 bg-card/80 p-4 shadow-premium">
+      <section className="rounded-2xl border border-primary/15 bg-card/80 p-4 shadow-premium">
         <div className="mb-4">
-          <p className="text-xs font-bold uppercase tracking-[0.18em] text-primary">Очки за неделю</p>
-          <h3 className="mt-1 text-xl font-black">Турнирный темп</h3>
+          <p className="text-xs font-bold uppercase tracking-[0.18em] text-primary">Динамика очков</p>
+          <h3 className="mt-1 text-xl font-black">Последние сессии</h3>
         </div>
-        <div className="h-72 min-w-0">
-          {mounted ? (
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={scoreData}>
-                <defs>
-                  <linearGradient id="scoreGradient" x1="0" x2="0" y1="0" y2="1">
-                    <stop offset="5%" stopColor="#ff8800" stopOpacity={0.55} />
-                    <stop offset="95%" stopColor="#ff8800" stopOpacity={0.02} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid stroke="rgba(255,255,255,0.06)" vertical={false} />
-                <XAxis dataKey="day" tick={{ fill: "#888888", fontSize: 12 }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fill: "#888888", fontSize: 12 }} axisLine={false} tickLine={false} width={48} />
-                <Tooltip contentStyle={tooltipStyle} cursor={{ stroke: "#ff8800", strokeOpacity: 0.2 }} />
-                <Area
-                  type="monotone"
-                  dataKey="score"
-                  stroke="#ff8800"
-                  strokeWidth={3}
-                  fill="url(#scoreGradient)"
+        <div className="flex h-72 min-w-0 items-end gap-2 rounded-xl border border-primary/10 bg-black/18 p-3 sm:gap-3 sm:p-4">
+          {scoreTrend.map((point) => (
+            <div key={point.label} className="flex min-w-0 flex-1 flex-col items-center justify-end gap-2">
+              <div className="flex h-56 w-full items-end">
+                <div
+                  className={cn(
+                    "w-full min-w-0 rounded-t-lg shadow-[0_0_22px_rgba(255,136,0,0.18)]",
+                    point.result === "won" ? "bg-gradient-to-t from-primary to-gold" : null,
+                    point.result === "lost" ? "bg-gradient-to-t from-red-aura/65 to-primary/70" : null,
+                    point.result === "unfinished" ? "bg-gradient-to-t from-purple-energy/60 to-primary/60" : null,
+                  )}
+                  style={{ height: `${Math.max(8, Math.round((point.score / maxScore) * 100))}%` }}
+                  title={`${point.score.toLocaleString("ru-RU")} очков`}
                 />
-              </AreaChart>
-            </ResponsiveContainer>
-          ) : (
-            <div className="h-full rounded-xl bg-popover/70" />
-          )}
+              </div>
+              <span className="text-[10px] font-bold text-muted-foreground sm:text-xs">{point.label}</span>
+            </div>
+          ))}
         </div>
-      </div>
-      <div className="rounded-2xl border border-primary/15 bg-card/80 p-4 shadow-premium">
+      </section>
+
+      <section className="rounded-2xl border border-primary/15 bg-card/80 p-4 shadow-premium">
         <div className="mb-4">
           <p className="text-xs font-bold uppercase tracking-[0.18em] text-purple-energy">Победы</p>
-          <h3 className="mt-1 text-xl font-black">Ежедневные зачистки</h3>
+          <h3 className="mt-1 text-xl font-black">Активность недели</h3>
         </div>
-        <div className="h-72 min-w-0">
-          {mounted ? (
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={scoreData}>
-                <CartesianGrid stroke="rgba(255,255,255,0.06)" vertical={false} />
-                <XAxis dataKey="day" tick={{ fill: "#888888", fontSize: 12 }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fill: "#888888", fontSize: 12 }} axisLine={false} tickLine={false} width={28} />
-                <Tooltip contentStyle={tooltipStyle} cursor={{ fill: "rgba(255,136,0,0.08)" }} />
-                <Bar dataKey="wins" fill="#aa44ff" radius={[8, 8, 2, 2]} />
-              </BarChart>
-            </ResponsiveContainer>
-          ) : (
-            <div className="h-full rounded-xl bg-popover/70" />
-          )}
+        <div className="grid h-72 min-w-0 grid-cols-7 items-end gap-2 rounded-xl border border-primary/10 bg-black/18 p-3 sm:gap-3 sm:p-4">
+          {weeklyActivity.map((point) => (
+            <div key={point.day} className="flex min-w-0 flex-col items-center justify-end gap-2">
+              <div className="flex h-48 w-full items-end justify-center gap-1">
+                <div
+                  className="w-full rounded-t-md bg-gradient-to-t from-purple-energy to-primary/80"
+                  style={{ height: `${Math.max(6, Math.round((point.games / maxGames) * 100))}%` }}
+                  title={`${point.games} игр`}
+                />
+                <div
+                  className="w-full rounded-t-md bg-gradient-to-t from-primary to-gold"
+                  style={{ height: `${point.wins === 0 ? 0 : Math.max(6, Math.round((point.wins / maxGames) * 100))}%` }}
+                  title={`${point.wins} побед`}
+                />
+              </div>
+              <span className="truncate text-[10px] font-bold text-muted-foreground sm:text-xs">{point.day}</span>
+            </div>
+          ))}
         </div>
-      </div>
+      </section>
     </div>
   );
 }

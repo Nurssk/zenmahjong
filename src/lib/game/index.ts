@@ -2,6 +2,7 @@ export {
   canRemovePair,
   checkGameStatus,
   createInitialBoardState,
+  createRegularGameSeed,
   findAvailablePairs,
   generateBoard,
   getHintPair,

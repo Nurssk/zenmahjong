@@ -13,18 +13,22 @@ function readSoundEnabledPreference() {
 }
 
 export function useSoundPreference() {
-  const [soundEnabled, setSoundEnabledState] = useState(readSoundEnabledPreference);
+  const [soundEnabled, setSoundEnabledState] = useState(true);
 
   const setSoundEnabled = useCallback((value: boolean | ((current: boolean) => boolean)) => {
     setSoundEnabledState((current) => {
       const nextValue = typeof value === "function" ? value(current) : value;
-      window.localStorage.setItem(SOUND_ENABLED_STORAGE_KEY, String(nextValue));
-      window.dispatchEvent(new CustomEvent("zen-mahjong-sound-preference-change", { detail: nextValue }));
+      if (typeof window !== "undefined") {
+        window.localStorage.setItem(SOUND_ENABLED_STORAGE_KEY, String(nextValue));
+        window.dispatchEvent(new CustomEvent("zen-mahjong-sound-preference-change", { detail: nextValue }));
+      }
       return nextValue;
     });
   }, []);
 
   useEffect(() => {
+    setSoundEnabledState(readSoundEnabledPreference());
+
     const handleStorage = (event: StorageEvent) => {
       if (event.key === SOUND_ENABLED_STORAGE_KEY) {
         setSoundEnabledState(event.newValue !== "false");

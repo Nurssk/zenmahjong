@@ -42,12 +42,12 @@ export function MahjongTile({
       onClick={onSelect}
       style={positioned ? style : undefined}
       className={cn(
-        "group overflow-visible bg-transparent p-0 font-bold opacity-100 transition-transform duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
+        "group touch-manipulation select-none overflow-visible bg-transparent p-0 font-bold opacity-100 transition-transform duration-150 [-webkit-tap-highlight-color:transparent] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
         positioned ? "absolute aspect-[7/10]" : "relative h-full w-full",
-        compact ? "text-[0.5rem] sm:text-[0.65rem]" : "text-[0.55rem] sm:text-xs md:text-sm",
-        free ? "cursor-pointer hover:-translate-y-1 hover:scale-[1.03]" : "cursor-not-allowed",
+        compact ? "text-[0.55rem] sm:text-[0.65rem]" : "text-[0.6rem] sm:text-xs md:text-sm",
+        free ? "cursor-pointer md:hover:-translate-y-1 md:hover:scale-[1.03]" : "cursor-not-allowed",
         pointerEventsDisabled ? "pointer-events-none" : null,
-        selected ? "-translate-y-1 scale-[1.04]" : null,
+        selected ? "-translate-y-1 scale-[1.06]" : null,
       )}
     >
       <span

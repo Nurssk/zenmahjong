@@ -82,6 +82,7 @@ body {
   font-family: var(--font-geist-sans), Inter, Manrope, system-ui, sans-serif;
   font-feature-settings: "rlig" 1, "calt" 1;
   text-rendering: optimizeLegibility;
+  overflow-x: hidden;
 }
 
 body::before {
@@ -195,4 +196,35 @@ body::after {
 
 .zen-focus-ring {
   box-shadow: 0 0 0 2px rgba(255, 136, 0, 0.2);
+}
+
+.mahjong-game-shell {
+  -webkit-tap-highlight-color: transparent;
+}
+
+.mahjong-board-stage {
+  --tile-w: clamp(44px, 5.45vw, 56px);
+  --tile-h: clamp(60px, 7.8vw, 80px);
+  --tile-x-step: clamp(20px, 5.2vw, 56px);
+  --tile-y-step: clamp(24px, 7.4vw, 80px);
+  --tile-depth: clamp(3px, 0.7vw, 7px);
+  --board-offset-x: clamp(4px, 4vw, 80px);
+  --board-offset-y: clamp(2px, 3vw, 30px);
+  --board-w: calc(var(--board-offset-x) + var(--tile-x-step) * 14 + var(--tile-depth) * 5 + var(--tile-w));
+  --board-h: calc(var(--board-offset-y) + var(--tile-y-step) * 9 + var(--tile-depth) * 5 + var(--tile-h));
+  width: var(--board-w);
+  height: var(--board-h);
+  touch-action: manipulation;
+}
+
+@media (max-width: 767px) {
+  .mahjong-board-stage {
+    --tile-w: 44px;
+    --tile-h: 60px;
+    --tile-x-step: clamp(18px, 5.45vw, 25px);
+    --tile-y-step: clamp(24px, 7vw, 34px);
+    --tile-depth: 3px;
+    --board-offset-x: 4px;
+    --board-offset-y: 2px;
+  }
 }
