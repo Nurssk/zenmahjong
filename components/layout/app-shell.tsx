@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { LogOut, Volume2, VolumeX } from "lucide-react";
+import { Home, LogOut, Volume2, VolumeX } from "lucide-react";
 import { CurrencyPill } from "@/components/layout/currency-pill";
 import { MobileNav } from "@/components/layout/mobile-nav";
 import { SidebarNav } from "@/components/layout/sidebar-nav";
@@ -95,52 +95,61 @@ export function AppShell({
   return (
     <div className="min-h-screen bg-zen-page">
       <SidebarNav activePath={activePath} />
-      <main className="min-h-screen pb-24 lg:ml-72 lg:pb-8">
-        <div className="sticky top-0 z-20 border-b border-primary/20 bg-background-mid/80 backdrop-blur-xl">
-          <div className="flex h-14 items-center justify-end gap-1 px-2 sm:gap-2 md:h-16 md:gap-3 md:px-8">
-            <CurrencyPill type="coins" value={coins} className="px-2 py-1.5 text-xs sm:px-3 md:px-4 md:py-2 md:text-sm" />
-            <CurrencyPill type="gems" value={gems} className="px-2 py-1.5 text-xs sm:px-3 md:px-4 md:py-2 md:text-sm" />
-            <SoundPreferenceButton
-              soundEnabled={soundEnabled}
-              onToggle={() => setSoundEnabled((current) => !current)}
-            />
-            {isAuthenticated ? (
-              <>
-                <Button asChild variant="ghost" className="hidden sm:inline-flex">
-                  <Link href="/profile">Профиль</Link>
+      <main className="min-h-screen pb-24 pt-14 lg:ml-72 lg:pb-8 md:pt-16">
+        <div className="fixed inset-x-0 top-0 z-50 border-b border-primary/20 bg-[#0E0E10]/85 backdrop-blur-xl lg:left-72">
+          <div className="flex h-14 items-center justify-between gap-2 px-2 sm:gap-3 md:h-16 md:px-8">
+            <Link
+              href="/dashboard"
+              className="inline-flex min-h-9 shrink-0 items-center gap-2 rounded-lg border border-primary/20 bg-popover px-2.5 text-sm font-bold text-foreground transition hover:border-primary/50 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary md:min-h-10 md:px-4"
+            >
+              <Home className="size-4 text-primary" />
+              <span className="hidden sm:inline">Главная</span>
+            </Link>
+            <div className="flex min-w-0 items-center justify-end gap-1 sm:gap-2 md:gap-3">
+              <CurrencyPill type="coins" value={coins} className="px-2 py-1.5 text-xs sm:px-3 md:px-4 md:py-2 md:text-sm" />
+              <CurrencyPill type="gems" value={gems} className="px-2 py-1.5 text-xs sm:px-3 md:px-4 md:py-2 md:text-sm" />
+              <SoundPreferenceButton
+                soundEnabled={soundEnabled}
+                onToggle={() => setSoundEnabled((current) => !current)}
+              />
+              {isAuthenticated ? (
+                <>
+                  <Button asChild variant="ghost" className="hidden sm:inline-flex">
+                    <Link href="/profile">Профиль</Link>
+                  </Button>
+                  <Avatar className="size-9 border border-primary/25 md:size-10">
+                    {user?.photoURL ? <AvatarImage src={user.photoURL} alt={user.displayName ?? "Профиль"} /> : null}
+                    <AvatarFallback>{fallback}</AvatarFallback>
+                  </Avatar>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    aria-label="Выйти"
+                    onClick={async () => {
+                      try {
+                        await logout();
+                        toast({
+                          title: "Сессия завершена",
+                          description: "Ты вышел из Zen Mahjong.",
+                        });
+                      } catch (error) {
+                        toast({
+                          title: "Не удалось выйти",
+                          description: mapFirebaseAuthError(error),
+                          variant: "destructive",
+                        });
+                      }
+                    }}
+                  >
+                    <LogOut className="size-4" />
+                  </Button>
+                </>
+              ) : (
+                <Button asChild>
+                  <Link href="/login">Войти</Link>
                 </Button>
-                <Avatar className="size-9 border border-primary/25 md:size-10">
-                  {user?.photoURL ? <AvatarImage src={user.photoURL} alt={user.displayName ?? "Профиль"} /> : null}
-                  <AvatarFallback>{fallback}</AvatarFallback>
-                </Avatar>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  aria-label="Выйти"
-                  onClick={async () => {
-                    try {
-                      await logout();
-                      toast({
-                        title: "Сессия завершена",
-                        description: "Ты вышел из Zen Mahjong.",
-                      });
-                    } catch (error) {
-                      toast({
-                        title: "Не удалось выйти",
-                        description: mapFirebaseAuthError(error),
-                        variant: "destructive",
-                      });
-                    }
-                  }}
-                >
-                  <LogOut className="size-4" />
-                </Button>
-              </>
-            ) : (
-              <Button asChild>
-                <Link href="/login">Войти</Link>
-              </Button>
-            )}
+              )}
+            </div>
           </div>
         </div>
         <div className="px-2 py-3 sm:px-4 md:px-8 md:py-8">{children}</div>

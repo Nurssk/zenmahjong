@@ -17,9 +17,13 @@ import {
   RotateCcw,
   Star,
   Trophy,
+  Volume2,
+  VolumeX,
 } from "lucide-react";
 import { GameActionButton } from "@/components/game/game-action-button";
 import { MahjongTile } from "@/components/game/mahjong-tile";
+import { CurrencyPill } from "@/components/layout/currency-pill";
+import { ResourceEmptyDialog } from "@/components/shop/resource-empty-dialog";
 import { useToast } from "@/components/ui/use-toast";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/src/context/AuthContext";
@@ -73,6 +77,12 @@ type ScoreState = {
   combo: number;
   lastMatchSecond: number | null;
   history: ScoredMove[];
+};
+
+type ResourceDialogState = {
+  title: string;
+  description: string;
+  shopLabel: string;
 };
 
 type LocalSessionSnapshot = {
@@ -331,6 +341,7 @@ export function MahjongBoard({
   const [noMovesModalVisible, setNoMovesModalVisible] = useState(false);
   const [boardAnimationKey, setBoardAnimationKey] = useState(0);
   const [isDealing, setIsDealing] = useState(false);
+  const [resourceDialog, setResourceDialog] = useState<ResourceDialogState | null>(null);
   const [economy, setEconomy] = useState<PlayerEconomy>(() => ({
     coins: DEFAULT_ECONOMY.coins,
     gems: DEFAULT_ECONOMY.gems,
@@ -338,7 +349,7 @@ export function MahjongBoard({
     undos: DEFAULT_ECONOMY.undos,
     updatedAt: new Date().toISOString(),
   }));
-  const { soundEnabled } = useSoundPreference();
+  const { setSoundEnabled, soundEnabled } = useSoundPreference();
   const [scoreState, setScoreState] = useState<ScoreState>(() =>
     initialSnapshot ? createScoreStateFromSnapshot(initialSnapshot) : createInitialScoreState(),
   );
@@ -1079,10 +1090,10 @@ export function MahjongBoard({
     }
 
     if (economy.hints <= 0) {
-      toast({
+      setResourceDialog({
         title: "Подсказки закончились",
-        description: "У вас закончились подсказки. Загляните в магазин.",
-        variant: "destructive",
+        description: "У вас больше нет подсказок. Можно купить дополнительные подсказки в магазине.",
+        shopLabel: "Купить подсказки",
       });
       return;
     }
@@ -1096,7 +1107,16 @@ export function MahjongBoard({
       updatedAt: new Date().toISOString(),
     }));
     void updateHintBalance(-1, user?.uid)
-      .then(setEconomy)
+      .then((nextEconomy) => {
+        setEconomy(nextEconomy);
+        if (nextEconomy.hints <= 0) {
+          setResourceDialog({
+            title: "Подсказки закончились",
+            description: "Вы использовали последнюю подсказку. Хотите купить ещё в магазине?",
+            shopLabel: "Купить подсказки",
+          });
+        }
+      })
       .catch(() => {
         setEconomy(economyBeforeHint);
         toast({
@@ -1166,10 +1186,10 @@ export function MahjongBoard({
     }
 
     if (economy.undos <= 0) {
-      toast({
-        title: "Отмены закончились",
-        description: "У вас закончились отмены. Загляните в магазин.",
-        variant: "destructive",
+      setResourceDialog({
+        title: "Отмена хода закончилась",
+        description: "У вас больше нет отмен хода. Можно купить дополнительные отмены в магазине.",
+        shopLabel: "Открыть магазин",
       });
       return;
     }
@@ -1207,7 +1227,16 @@ export function MahjongBoard({
       updatedAt: new Date().toISOString(),
     }));
     void updateUndoBalance(-1, user?.uid)
-      .then(setEconomy)
+      .then((nextEconomy) => {
+        setEconomy(nextEconomy);
+        if (nextEconomy.undos <= 0) {
+          setResourceDialog({
+            title: "Это была последняя отмена",
+            description: "Вы использовали последнюю отмену хода. Хотите купить ещё в магазине?",
+            shopLabel: "Купить в магазине",
+          });
+        }
+      })
       .catch(() => {
         setEconomy(economyBeforeUndo);
         toast({
@@ -1367,11 +1396,21 @@ export function MahjongBoard({
       className={cn(
         "mahjong-game-shell relative overflow-hidden rounded-xl border border-primary/20 bg-gradient-to-br from-card to-background-mid p-2 shadow-glass sm:p-3 md:rounded-2xl md:p-6",
         "fullscreen:rounded-none fullscreen:border-0 fullscreen:bg-[#0E0E10]",
-        isFullscreen ? "flex h-screen w-screen flex-col rounded-none border-0 bg-[#0E0E10] p-3 sm:p-4 md:p-5" : null,
+        isFullscreen
+          ? "flex h-dvh w-screen flex-col overflow-auto rounded-none border-0 bg-[#0E0E10] p-3 pt-20 pb-28 sm:p-4 sm:pt-20 sm:pb-28 md:p-5 md:pt-24 md:pb-28"
+          : null,
         compact ? "min-h-[360px]" : "min-h-[calc(100svh-96px)] md:min-h-[560px]",
       )}
     >
-      <div className="absolute inset-0 bg-zen-radial" />
+      <div className="pointer-events-none absolute inset-0 bg-zen-radial" />
+      {isFullscreen ? (
+        <FullscreenGameHeader
+          coins={economy.coins}
+          gems={economy.gems}
+          soundEnabled={soundEnabled}
+          onSoundToggle={() => setSoundEnabled((current) => !current)}
+        />
+      ) : null}
       <div className="relative z-10 mb-2 grid gap-2 md:mb-4 md:gap-3 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-center">
         <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3 xl:grid-cols-5 sm:gap-2 md:gap-3">
           <GameStatCard icon={<Clock3 />} label="Время" value={formatElapsedTime(elapsedSeconds)} />
@@ -1425,7 +1464,7 @@ export function MahjongBoard({
       <div
         className={cn(
           "relative z-10 grid min-h-0 flex-1 gap-2 md:gap-4 lg:grid-cols-[minmax(0,1fr)_148px]",
-          isFullscreen ? "lg:grid-cols-[minmax(0,1fr)_132px]" : null,
+          isFullscreen ? "pb-10 lg:grid-cols-[minmax(0,1fr)_132px] lg:pb-6" : null,
         )}
       >
         <motion.div
@@ -1435,10 +1474,16 @@ export function MahjongBoard({
               : { opacity: 1, x: 0 }
           }
           transition={{ duration: noMovesModalVisible ? 0.44 : 0.2, ease: "easeOut" }}
-          className="relative flex min-h-0 items-center justify-center overflow-hidden rounded-lg border border-primary/10 bg-black/20 p-0.5 sm:p-2 md:rounded-xl md:p-3"
+          className={cn(
+            "relative flex min-h-0 items-center justify-center overflow-hidden rounded-lg border border-primary/10 bg-black/20 p-0.5 sm:p-2 md:rounded-xl md:p-3",
+            isFullscreen ? "min-h-[calc(100dvh-270px)] lg:min-h-[calc(100dvh-245px)]" : null,
+          )}
         >
           <div
-            className={cn("mahjong-board-stage relative mx-auto max-w-full select-none", isFullscreen ? "max-w-none" : null)}
+            className={cn(
+              "mahjong-board-stage relative mx-auto max-w-full select-none",
+              isFullscreen ? "mahjong-board-stage--fullscreen max-w-none" : null,
+            )}
           >
             <AnimatePresence>
               {state.tiles.map((tile) =>
@@ -1572,7 +1617,60 @@ export function MahjongBoard({
           />
         ) : null}
       </AnimatePresence>
+      <ResourceEmptyDialog
+        open={Boolean(resourceDialog)}
+        title={resourceDialog?.title ?? ""}
+        description={resourceDialog?.description ?? ""}
+        shopLabel={resourceDialog?.shopLabel}
+        onOpenChange={(open) => {
+          if (!open) {
+            setResourceDialog(null);
+          }
+        }}
+      />
     </div>
+  );
+}
+
+function FullscreenGameHeader({
+  coins,
+  gems,
+  onSoundToggle,
+  soundEnabled,
+}: {
+  coins: number;
+  gems: number;
+  onSoundToggle: () => void;
+  soundEnabled: boolean;
+}) {
+  const label = soundEnabled ? "Звук включён" : "Звук выключен";
+  const Icon = soundEnabled ? Volume2 : VolumeX;
+
+  return (
+    <header className="fixed inset-x-0 top-0 z-[1150] border-b border-primary/20 bg-[#0E0E10]/88 backdrop-blur-xl">
+      <div className="flex h-14 items-center justify-between gap-2 px-2 sm:px-4 md:h-16 md:px-5">
+        <Link
+          href="/dashboard"
+          className="inline-flex min-h-9 shrink-0 items-center gap-2 rounded-lg border border-primary/20 bg-popover px-2.5 text-sm font-bold text-foreground transition hover:border-primary/50 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary md:min-h-10 md:px-4"
+        >
+          <Home className="size-4 text-primary" />
+          <span className="hidden sm:inline">Главная</span>
+        </Link>
+        <div className="flex min-w-0 items-center justify-end gap-1 sm:gap-2">
+          <CurrencyPill type="coins" value={coins} className="px-2 py-1.5 text-xs sm:px-3 md:px-4 md:py-2 md:text-sm" />
+          <CurrencyPill type="gems" value={gems} className="px-2 py-1.5 text-xs sm:px-3 md:px-4 md:py-2 md:text-sm" />
+          <button
+            type="button"
+            onClick={onSoundToggle}
+            aria-label={label}
+            title={label}
+            className="inline-flex size-9 shrink-0 items-center justify-center rounded-lg border border-primary/20 bg-popover text-primary shadow-[0_10px_30px_rgba(0,0,0,0.18)] transition hover:border-primary/45 hover:bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary md:size-10"
+          >
+            <Icon className="size-4" />
+          </button>
+        </div>
+      </div>
+    </header>
   );
 }
 
@@ -1849,9 +1947,16 @@ function GameActionDock({
 }) {
   const hintLabel = hintCount <= 0 ? "Нет подсказок" : `Подсказка · ${hintCount}`;
   const undoLabel = undoCount <= 0 ? "Нет отмен" : `Отмена · ${undoCount}`;
+  const hintsEmpty = hintCount <= 0;
+  const undosEmpty = undoCount <= 0;
 
   return (
-    <aside className="sticky bottom-20 z-30 -mx-1 flex min-w-0 flex-col gap-2 lg:static lg:mx-0 lg:gap-3">
+    <aside
+      className={cn(
+        "z-30 -mx-1 flex min-w-0 flex-col gap-2 lg:static lg:mx-0 lg:gap-3",
+        isFullscreen ? "relative bottom-auto" : "sticky bottom-20",
+      )}
+    >
       <div className="flex gap-2 overflow-x-auto rounded-xl border border-primary/15 bg-card/92 p-1.5 shadow-glass backdrop-blur-xl lg:flex-col lg:gap-3 lg:bg-black/20 lg:p-2 lg:shadow-none lg:backdrop-blur-none lg:overflow-visible">
         <GameActionButton
           label={pausedByUser ? "Старт" : "Пауза"}
@@ -1866,9 +1971,17 @@ function GameActionDock({
           icon={<Lightbulb />}
           onClick={onHint}
           hidden={hintHidden}
-          disabled={paused || availablePairsCount === 0}
+          disabled={paused || availablePairsCount === 0 || hintsEmpty}
           className="lg:min-h-24"
         />
+        {!hintHidden && hintsEmpty ? (
+          <div className="min-w-[168px] rounded-lg border border-primary/25 bg-primary/10 p-2 text-xs font-semibold text-orange-glow lg:min-w-0">
+            <p>Подсказки закончились</p>
+            <Link href="/shop" className="mt-1 inline-flex text-primary underline underline-offset-4">
+              Купить подсказки
+            </Link>
+          </div>
+        ) : null}
         {undoHidden ? null : (
           <GameActionButton
             label={undoLabel}
@@ -1878,6 +1991,14 @@ function GameActionDock({
             className="lg:min-h-24"
           />
         )}
+        {!undoHidden && undosEmpty ? (
+          <div className="min-w-[168px] rounded-lg border border-purple-energy/25 bg-purple-energy/10 p-2 text-xs font-semibold text-purple-200 lg:min-w-0">
+            <p>Отмены закончились</p>
+            <Link href="/shop" className="mt-1 inline-flex text-purple-energy underline underline-offset-4">
+              Купить отмены
+            </Link>
+          </div>
+        ) : null}
         <GameActionButton
           label="AI Тренер"
           icon={<Bot />}

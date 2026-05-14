@@ -7,7 +7,7 @@ import { MahjongBoard } from "@/components/game/mahjong-board";
 export default function GamePage() {
   return (
     <ProtectedRoute>
-      <main className="relative min-h-screen overflow-hidden bg-zen-page">
+      <main className="relative min-h-dvh overflow-x-hidden bg-zen-page pt-14 md:pt-16">
         <AtmosphericBackground count={20} className="opacity-60" />
         <div className="relative z-10">
           <GameHeader />

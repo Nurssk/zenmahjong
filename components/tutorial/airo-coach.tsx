@@ -32,7 +32,7 @@ export function AiroCoach({ message, mood, title = "Айро", variant = "guide"
     <div
       className={cn(
         "relative flex w-full flex-col items-center overflow-visible",
-        isCompact ? "gap-3" : "gap-3 lg:min-h-[620px]",
+        isCompact ? "gap-3" : "gap-4",
       )}
     >
       <motion.div
@@ -86,9 +86,9 @@ export function AiroCoach({ message, mood, title = "Айро", variant = "guide"
       <motion.div
         key={`${mood}-${message}`}
         className={cn(
-          "relative w-full rounded-xl border p-3 text-center shadow-[0_18px_45px_rgba(0,0,0,0.24)] backdrop-blur-xl lg:text-left",
+          "relative w-full rounded-2xl border p-4 text-center shadow-[0_18px_45px_rgba(0,0,0,0.24)] backdrop-blur-xl lg:text-left",
           "before:absolute before:left-1/2 before:top-0 before:size-3 before:-translate-x-1/2 before:-translate-y-1/2 before:rotate-45 before:border-l before:border-t before:border-current before:bg-[#16131a] lg:before:left-10",
-          !isCompact ? "lg:absolute lg:left-20 lg:top-8 lg:z-10 lg:w-60 xl:left-24 xl:w-[270px]" : null,
+          !isCompact ? "max-w-[340px] lg:max-w-none" : null,
           moodStyles[mood],
         )}
         initial={{ opacity: 0, y: 6 }}

@@ -228,3 +228,8 @@ body::after {
     --board-offset-y: 2px;
   }
 }
+
+.mahjong-board-stage--fullscreen {
+  --board-offset-y: clamp(14px, 1.7dvh, 24px);
+  --board-h: calc(var(--board-offset-y) + var(--tile-y-step) * 7 + var(--tile-depth) * 5 + var(--tile-h) + clamp(18px, 2.4dvh, 34px));
+}
