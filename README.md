@@ -1,4 +1,4 @@
-https://github.com/Nurssk/zenmahjong
+https://zenmahjong-rose.vercel.app
 
 # Zen Mahjong
 **Zen Mahjong** — современная веб-платформа для игры в Mahjong, созданная как стартап-прототип для коротких умных игровых сессий, отдыха, фокуса и соревновательного режима.
