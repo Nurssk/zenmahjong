@@ -1,6 +1,7 @@
 "use client";
 
-import { LogOut, MapPin, Shield, Sparkles } from "lucide-react";
+import { useState } from "react";
+import { Check, LogOut, MapPin, Moon, Shield, Sparkles, Sun } from "lucide-react";
 import { AppShell } from "@/components/layout/app-shell";
 import { MotionShell } from "@/components/layout/motion-shell";
 import { PageHeader } from "@/components/layout/page-header";
@@ -13,10 +14,34 @@ import { useToast } from "@/components/ui/use-toast";
 import { demoInventory, demoProfile } from "@/constants/product";
 import { useAuth } from "@/src/context/AuthContext";
 import { mapFirebaseAuthError } from "@/src/lib/auth";
+import { useTheme } from "@/src/components/theme/ThemeProvider";
+import type { AppTheme } from "@/src/lib/theme/theme-service";
+
+const themeOptions: Array<{
+  description: string;
+  icon: typeof Sun;
+  id: AppTheme;
+  title: string;
+}> = [
+  {
+    description: "Светлый спокойный интерфейс для дневных сессий.",
+    icon: Sun,
+    id: "light",
+    title: "Светлая тема",
+  },
+  {
+    description: "Кинематографичный темный стиль Zen Mahjong.",
+    icon: Moon,
+    id: "dark",
+    title: "Темная тема",
+  },
+];
 
 export default function ProfilePage() {
   const { logout, user } = useAuth();
+  const { setTheme, theme } = useTheme();
   const { toast } = useToast();
+  const [savingTheme, setSavingTheme] = useState<AppTheme | null>(null);
   const name = user?.displayName ?? "Игрок Zen Mahjong";
   const email = user?.email ?? "Почта не указана";
   const fallback = name
@@ -92,6 +117,72 @@ export default function ProfilePage() {
                 </CardContent>
               </Card>
             </div>
+
+            <Card className="border-primary/20 bg-card/85 shadow-premium">
+              <CardHeader>
+                <CardTitle>Тема интерфейса</CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  Выбери светлый или темный стиль. Настройка применится сразу и сохранится в профиле.
+                </p>
+              </CardHeader>
+              <CardContent className="grid gap-3 md:grid-cols-2">
+                {themeOptions.map((option) => {
+                  const Icon = option.icon;
+                  const selected = theme === option.id;
+                  const saving = savingTheme === option.id;
+
+                  return (
+                    <button
+                      key={option.id}
+                      type="button"
+                      onClick={async () => {
+                        setSavingTheme(option.id);
+                        const result = await setTheme(option.id);
+                        setSavingTheme(null);
+
+                        if (result.savedToFirestore || user?.uid) {
+                          toast({
+                            title: "Тема обновлена",
+                            description: result.savedToFirestore
+                              ? "Выбранная тема сохранена в профиле."
+                              : "Тема применена локально. Firestore временно недоступен.",
+                            variant: result.savedToFirestore ? "default" : "destructive",
+                          });
+                        } else {
+                          toast({
+                            title: "Тема обновлена",
+                            description: "Выбранная тема сохранена на этом устройстве.",
+                          });
+                        }
+                      }}
+                      disabled={savingTheme !== null}
+                      className={[
+                        "relative min-h-32 rounded-2xl border p-5 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-70",
+                        selected
+                          ? "border-primary/70 bg-primary/10 shadow-[0_0_34px_rgba(255,107,53,0.18)]"
+                          : "border-primary/15 bg-popover/70 hover:border-primary/45 hover:bg-primary/5",
+                      ].join(" ")}
+                    >
+                      <div className="flex items-start justify-between gap-4">
+                        <span className="grid size-11 place-items-center rounded-xl border border-primary/20 bg-card text-primary">
+                          <Icon className="size-5" />
+                        </span>
+                        {selected ? (
+                          <span className="grid size-7 place-items-center rounded-full bg-primary text-primary-foreground">
+                            <Check className="size-4" />
+                          </span>
+                        ) : null}
+                      </div>
+                      <p className="mt-4 font-display text-xl font-black uppercase tracking-[0.04em] text-foreground">
+                        {option.title}
+                      </p>
+                      <p className="mt-2 text-sm leading-6 text-muted-foreground">{option.description}</p>
+                      {saving ? <p className="mt-3 text-xs font-bold text-primary">Сохраняем...</p> : null}
+                    </button>
+                  );
+                })}
+              </CardContent>
+            </Card>
 
             <div className="grid gap-4 md:grid-cols-2">
               <Card className="border-primary/15 bg-card/80">

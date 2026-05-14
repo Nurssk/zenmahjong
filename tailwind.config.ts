@@ -67,7 +67,7 @@ const config: Config = {
       backgroundImage: {
         "zen-radial":
           "radial-gradient(ellipse at center, rgba(255,136,0,0.05) 0%, transparent 70%)",
-        "zen-page": "linear-gradient(180deg, #0a0a0a 0%, #0f0f0f 48%, #1a1a1a 100%)",
+        "zen-page": "linear-gradient(180deg, var(--background) 0%, var(--background-mid) 48%, var(--popover) 100%)",
         "zen-cta": "linear-gradient(90deg, #ff8800 0%, #ff6600 100%)",
         "zen-title": "linear-gradient(90deg, #ffaa00 0%, #ff8800 52%, #ff6600 100%)",
         "premium": "linear-gradient(135deg, rgba(170,68,255,0.22) 0%, rgba(255,136,0,0.16) 100%)",

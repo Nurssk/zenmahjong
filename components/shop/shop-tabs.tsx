@@ -1,6 +1,6 @@
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-const tabs = ["Монеты", "Самоцветы", "Тренеры", "Скины доски", "Наборы"];
+const tabs = ["Монеты", "Самоцветы", "Сенсеи", "Скины доски", "Наборы"];
 
 export function ShopTabs() {
   return (

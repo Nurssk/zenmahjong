@@ -16,7 +16,7 @@ export function TrainerCard({
         <CoachPortrait trainerId={trainerId} size="lg" />
         <div>
           <h3 className="font-bold capitalize">{trainerId}</h3>
-          <p className="text-sm text-muted-foreground">Премиальная личность AI-тренера.</p>
+          <p className="text-sm text-muted-foreground">Премиальная личность сенсея.</p>
         </div>
         <Button variant="outline">{price}</Button>
       </CardContent>

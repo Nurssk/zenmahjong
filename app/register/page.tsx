@@ -19,7 +19,7 @@ export default function RegisterPage() {
       <MotionShell className="relative z-10 w-full">
         <AuthCard
           title="Регистрация"
-          subtitle="Создай профиль, выбери тренера и открой кинематографичный путь Zen Mahjong."
+          subtitle="Создай профиль, выбери сенсея и открой кинематографичный путь Zen Mahjong."
         >
           <RegisterForm />
         </AuthCard>

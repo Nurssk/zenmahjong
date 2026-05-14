@@ -20,7 +20,7 @@ export default function LoginPage() {
       <MotionShell className="relative z-10 w-full">
         <AuthCard
           title="С возвращением"
-          subtitle="Продолжай восхождение в Zen Mahjong: турниры дня, советы тренера и премиальные награды ждут."
+          subtitle="Продолжай восхождение в Zen Mahjong: турниры дня, советы сенсея и премиальные награды ждут."
         >
           <Suspense fallback={<p className="text-sm text-muted-foreground">Загружаем форму входа...</p>}>
             <LoginForm />

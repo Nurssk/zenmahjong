@@ -10,6 +10,7 @@ export type {
   GemShopItem,
   HintShopItem,
   PlayerEconomy,
+  SenseiCharacterShopItem,
   ShopItem,
   UndoShopItem,
 } from "@/src/lib/economy/economy-types";

@@ -11,7 +11,7 @@ export function PackCard({ name, price }: { name: string; price: string }) {
         </div>
         <div>
           <h3 className="font-bold">{name}</h3>
-          <p className="text-sm text-muted-foreground">Монеты, самоцветы, осколки тренеров и расходники.</p>
+          <p className="text-sm text-muted-foreground">Монеты, самоцветы, осколки сенсеев и расходники.</p>
         </div>
         <Button variant="outline">{price}</Button>
       </CardContent>

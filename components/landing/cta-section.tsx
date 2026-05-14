@@ -10,7 +10,7 @@ export function CTASection() {
         Создай ежедневный ритуал фокуса с {productName}.
       </h2>
       <p className="type-body-lg mx-auto mt-4 max-w-2xl text-muted-foreground">
-        Пройди настройку, встреться с AI-тренером и войди в цикл ежедневных
+        Пройди настройку, встреться с сенсеем и войди в цикл ежедневных
         турниров за несколько минут.
       </p>
       <div className="mt-8 flex justify-center">

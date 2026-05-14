@@ -40,7 +40,18 @@ export type GemShopItem = {
   demoPaymentOnly: true;
 };
 
+export type SenseiCharacterShopItem = {
+  id: "sensei_ugway";
+  title: string;
+  description: string;
+  type: "sensei_character";
+  senseiId: "ugway";
+  image: string;
+  priceGems: number;
+  currency: "gems";
+};
+
 export type HintShopItem = ConsumableShopItem & { type: "hints" };
 export type UndoShopItem = ConsumableShopItem & { type: "undos" };
 export type DemoPaymentShopItem = CoinShopItem | GemShopItem;
-export type ShopItem = ConsumableShopItem | DemoPaymentShopItem;
+export type ShopItem = ConsumableShopItem | DemoPaymentShopItem | SenseiCharacterShopItem;

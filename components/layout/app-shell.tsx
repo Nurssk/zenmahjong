@@ -96,7 +96,7 @@ export function AppShell({
     <div className="min-h-screen bg-zen-page">
       <SidebarNav activePath={activePath} />
       <main className="min-h-screen pb-24 pt-14 lg:ml-72 lg:pb-8 md:pt-16">
-        <div className="fixed inset-x-0 top-0 z-50 border-b border-primary/20 bg-[#0E0E10]/85 backdrop-blur-xl lg:left-72">
+        <div className="fixed inset-x-0 top-0 z-50 border-b border-primary/20 bg-background/85 backdrop-blur-xl lg:left-72">
           <div className="flex h-14 items-center justify-between gap-2 px-2 sm:gap-3 md:h-16 md:px-8">
             <Link
               href="/dashboard"

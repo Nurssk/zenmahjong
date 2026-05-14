@@ -52,7 +52,7 @@ export function HeroSection() {
         <div className="grid w-full max-w-5xl grid-cols-1 gap-6 md:grid-cols-3">
           {[
             ["Ежедневные турниры", "Сражайся за легендарные награды", Sparkles],
-            ["AI-тренеры", "Тренируйся с мистическими стратегами", Brain],
+            ["Сенсеи", "Тренируйся с мистическими наставниками", Brain],
             ["Игровая экономика", "Покупай подсказки, отмены и косметические наборы", Coins],
           ].map(([title, description, Icon], index) => (
             <motion.div

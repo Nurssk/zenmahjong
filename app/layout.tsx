@@ -15,9 +15,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: `${productName} | Маджонг фокуса с AI-тренерами`,
+  title: `${productName} | Маджонг фокуса с сенсеями`,
   description:
-    "Zen Mahjong — премиальная платформа маджонга с AI-тренерами, турнирами, прогрессом и кинематографичным темным интерфейсом.",
+    "Zen Mahjong — премиальная платформа маджонга с сенсеями, турнирами, прогрессом и кинематографичным темным интерфейсом.",
   icons: {
     icon: "/icon.svg",
   },
@@ -29,7 +29,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ru" className="dark">
+    <html lang="ru" className="dark" data-theme="dark" suppressHydrationWarning>
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         <Providers>{children}</Providers>
       </body>

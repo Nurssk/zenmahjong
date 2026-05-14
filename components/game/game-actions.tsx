@@ -6,7 +6,7 @@ import { GameActionButton } from "@/components/game/game-action-button";
 const actions = [
   { label: "Подсказка", icon: Lightbulb },
   { label: "Отмена", icon: RotateCcw },
-  { label: "AI Тренер", icon: Bot },
+  { label: "Сенсей", icon: Bot },
   { label: "Полный экран", icon: Maximize2 },
 ];
 

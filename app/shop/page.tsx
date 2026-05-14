@@ -1,8 +1,9 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
-import { Check, Coins, Gem, Gift, Lightbulb, RotateCcw } from "lucide-react";
+import { Bot, Check, Coins, Gem, Gift, Lightbulb, RotateCcw } from "lucide-react";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { FakePaymentModal } from "@/components/shop/fake-payment-modal";
 import { AppShell } from "@/components/layout/app-shell";
@@ -14,7 +15,7 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/src/context/AuthContext";
-import { COIN_PACKS, GEM_PACKS, HINT_PACKS, UNDO_PACKS } from "@/src/lib/economy/shop-catalog";
+import { COIN_PACKS, GEM_PACKS, HINT_PACKS, SENSEI_CHARACTER_ITEMS, UNDO_PACKS } from "@/src/lib/economy/shop-catalog";
 import {
   DEFAULT_ECONOMY,
   ECONOMY_STORAGE_KEY,
@@ -31,6 +32,15 @@ import {
   type PlayerEconomy,
   type UndoShopItem,
 } from "@/src/lib/economy/economy-service";
+import {
+  InsufficientGemsError,
+  createDefaultSenseiProfile,
+  getSenseiProfile,
+  purchaseUgway,
+  selectSensei,
+  type SenseiProfile,
+} from "@/src/lib/sensei/sensei-service";
+import type { SenseiCharacterShopItem } from "@/src/lib/economy/economy-types";
 
 const currencyFormatter = new Intl.NumberFormat("ru-RU");
 
@@ -48,6 +58,7 @@ export default function ShopPage() {
   const [purchasedItemId, setPurchasedItemId] = useState<string | null>(null);
   const [selectedPaymentPack, setSelectedPaymentPack] = useState<DemoPaymentShopItem | null>(null);
   const [claimingPaymentPack, setClaimingPaymentPack] = useState(false);
+  const [senseiProfile, setSenseiProfile] = useState<SenseiProfile>(() => createDefaultSenseiProfile());
   const purchasedResetTimeoutRef = useRef<number | null>(null);
 
   useEffect(() => {
@@ -60,15 +71,17 @@ export default function ShopPage() {
     setEconomy(createDefaultPlayerEconomy(userId));
 
     const refreshEconomy = () => {
-      void getPlayerEconomy(userId)
-        .then((nextEconomy) => {
+      void Promise.all([getPlayerEconomy(userId), getSenseiProfile(userId)])
+        .then(([nextEconomy, nextSenseiProfile]) => {
           if (!cancelled) {
             setEconomy(nextEconomy);
+            setSenseiProfile(nextSenseiProfile);
           }
         })
         .catch(() => {
           if (!cancelled) {
             setEconomy(createDefaultPlayerEconomy(userId));
+            setSenseiProfile(createDefaultSenseiProfile());
           }
         });
     };
@@ -173,6 +186,75 @@ export default function ShopPage() {
     }
   }
 
+  async function handleSenseiPurchase(item: SenseiCharacterShopItem) {
+    if (purchasingItemId) {
+      return;
+    }
+
+    if (!user?.uid) {
+      toast({
+        title: "Войдите в аккаунт",
+        description: "Премиальные сенсеи доступны только для аккаунта.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (economy.gems < item.priceGems) {
+      toast({
+        title: "Недостаточно самоцветов",
+        description: "Пополните баланс самоцветов в магазине.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setPurchasingItemId(item.id);
+
+    try {
+      const result = await purchaseUgway(user.uid);
+      setEconomy(result.economy);
+      setSenseiProfile(result.profile);
+      toast({
+        title: result.purchased ? "Угвей куплен" : "Угвей уже куплен",
+        description: result.purchased ? "Угвей выбран активным сенсеем." : "Покупка не была списана повторно.",
+      });
+    } catch (error) {
+      toast({
+        title: error instanceof InsufficientGemsError ? "Недостаточно самоцветов" : "Покупка недоступна",
+        description: "Баланс не изменён. Попробуйте ещё раз.",
+        variant: "destructive",
+      });
+    } finally {
+      setPurchasingItemId(null);
+    }
+  }
+
+  async function handleSenseiSelect(item: SenseiCharacterShopItem) {
+    if (purchasingItemId || !user?.uid) {
+      return;
+    }
+
+    setPurchasingItemId(item.id);
+
+    try {
+      const nextProfile = await selectSensei(user.uid, item.senseiId);
+      setSenseiProfile(nextProfile);
+      toast({
+        title: "Угвей выбран",
+        description: "Сенсей обновится в игровом оверлее.",
+      });
+    } catch {
+      toast({
+        title: "Не удалось выбрать сенсея",
+        description: "Проверьте подключение и попробуйте ещё раз.",
+        variant: "destructive",
+      });
+    } finally {
+      setPurchasingItemId(null);
+    }
+  }
+
   return (
     <ProtectedRoute>
       <AppShell activePath="/shop">
@@ -225,6 +307,45 @@ export default function ShopPage() {
               {GEM_PACKS.map((pack) => (
                 <PaymentPackCard key={pack.id} accent="gems" pack={pack} onSelect={() => setSelectedPaymentPack(pack)} />
               ))}
+            </div>
+          </ShopSection>
+
+          <ShopSection
+            badge="1000 самоцветов"
+            description="Airo остаётся бесплатным сенсеем, а Угвей открывается как премиальный наставник."
+            title="Сенсеи"
+          >
+            <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(280px,380px)]">
+              {SENSEI_CHARACTER_ITEMS.map((item) => (
+                <SenseiCharacterCard
+                  key={item.id}
+                  item={item}
+                  owned={senseiProfile.ownedSenseis.includes(item.senseiId)}
+                  selected={senseiProfile.selectedSensei === item.senseiId}
+                  canAfford={economy.gems >= item.priceGems}
+                  busy={purchasingItemId === item.id}
+                  disabled={purchasingItemId !== null}
+                  onPurchase={() => void handleSenseiPurchase(item)}
+                  onSelect={() => void handleSenseiSelect(item)}
+                />
+              ))}
+              <article className="rounded-xl border border-primary/15 bg-card/70 p-5 shadow-glass backdrop-blur-xl md:p-6">
+                <div className="flex items-center gap-3">
+                  <div className="grid size-12 place-items-center rounded-xl border border-primary/25 bg-primary/12 text-primary">
+                    <Bot className="size-6" />
+                  </div>
+                  <div>
+                    <p className="font-display text-2xl font-black uppercase tracking-[0.04em]">Айро</p>
+                    <p className="text-sm text-muted-foreground">Стартовый сенсей</p>
+                  </div>
+                </div>
+                <p className="mt-4 text-sm leading-6 text-muted-foreground">
+                  Айро доступен всем игрокам бесплатно и остаётся базовым наставником для стратегических советов.
+                </p>
+                <Badge className="mt-5 rounded-lg border border-green-success/30 bg-green-success/12 text-green-success">
+                  Доступен
+                </Badge>
+              </article>
             </div>
           </ShopSection>
 
@@ -383,6 +504,89 @@ function PaymentPackCard({
           +{currencyFormatter.format(amount)} {isGems ? "самоцветов" : "монет"}
         </p>
         <p className="mt-3 text-center text-xs font-semibold text-muted-foreground">Оплата позже, сейчас без списаний</p>
+      </div>
+    </article>
+  );
+}
+
+function SenseiCharacterCard({
+  busy,
+  canAfford,
+  disabled,
+  item,
+  onPurchase,
+  onSelect,
+  owned,
+  selected,
+}: {
+  busy: boolean;
+  canAfford: boolean;
+  disabled: boolean;
+  item: SenseiCharacterShopItem;
+  onPurchase: () => void;
+  onSelect: () => void;
+  owned: boolean;
+  selected: boolean;
+}) {
+  return (
+    <article className="group relative overflow-hidden rounded-2xl border border-purple-energy/35 bg-gradient-to-br from-card via-background-mid to-popover p-5 shadow-[0_26px_90px_rgba(0,0,0,0.38)] backdrop-blur-xl transition hover:-translate-y-0.5 hover:border-purple-energy/60 md:p-6">
+      <div className="absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-purple-energy/85 to-transparent" />
+      <div className="absolute right-0 top-0 size-44 rounded-full bg-purple-energy/18 blur-3xl" />
+      <div className="relative grid gap-5 md:grid-cols-[220px_minmax(0,1fr)] md:items-center">
+        <div className="relative min-h-[260px] overflow-hidden rounded-2xl border border-primary/20 bg-black/25">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_20%,rgba(255,107,53,0.16),transparent_44%),radial-gradient(circle_at_50%_78%,rgba(108,99,255,0.18),transparent_48%)]" />
+          <Image
+            src={item.image}
+            alt={item.title}
+            width={280}
+            height={360}
+            className="relative mx-auto h-[280px] w-auto object-contain drop-shadow-[0_22px_55px_rgba(0,0,0,0.58)] transition duration-300 group-hover:scale-[1.03]"
+          />
+          <div className="absolute left-3 top-3 flex gap-2">
+            {owned ? (
+              <Badge className="rounded-lg border border-green-success/30 bg-green-success/12 text-green-success">
+                Куплено
+              </Badge>
+            ) : null}
+            {selected ? (
+              <Badge variant="premium" className="rounded-lg">
+                Выбран
+              </Badge>
+            ) : null}
+          </div>
+        </div>
+        <div className="min-w-0">
+          <p className="text-xs font-black uppercase tracking-[0.22em] text-purple-energy">Премиальный сенсей</p>
+          <h3 className="mt-2 font-display text-4xl font-black uppercase tracking-[0.04em] text-foreground">
+            {item.title}
+          </h3>
+          <p className="mt-3 text-sm leading-6 text-muted-foreground md:text-base md:leading-7">{item.description}</p>
+          <div className="mt-5 inline-flex items-center gap-2 rounded-xl border border-purple-energy/25 bg-purple-energy/10 px-4 py-3 font-display text-2xl font-black text-purple-energy">
+            <Gem className="size-5" fill="currentColor" />
+            {currencyFormatter.format(item.priceGems)}
+          </div>
+          <Button
+            className="mt-5 w-full sm:w-auto"
+            disabled={disabled || selected}
+            variant={owned && !selected ? "outline" : "default"}
+            onClick={owned ? onSelect : onPurchase}
+          >
+            {busy ? (
+              "Обновляем..."
+            ) : selected ? (
+              <>
+                <Check className="size-4" />
+                Выбран
+              </>
+            ) : owned ? (
+              "Выбрать"
+            ) : canAfford ? (
+              `Купить за ${currencyFormatter.format(item.priceGems)} 💎`
+            ) : (
+              "Недостаточно самоцветов"
+            )}
+          </Button>
+        </div>
       </div>
     </article>
   );

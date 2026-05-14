@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 const features = [
   {
-    title: "Система AI-тренеров",
+    title: "Система сенсеев",
     description: "Airo, Vega и Blitz ведут игроков разными стилями.",
     icon: Bot,
   },
@@ -19,7 +19,7 @@ const features = [
   },
   {
     title: "Премиальная экономика",
-    description: "Тренеры, скины, подсказки, отмены, монеты и самоцветы в демо-интерфейсе.",
+    description: "Сенсеи, скины, подсказки, отмены, монеты и самоцветы в демо-интерфейсе.",
     icon: Gem,
   },
 ];

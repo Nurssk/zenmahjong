@@ -1,4 +1,11 @@
-import type { CoinShopItem, GemShopItem, HintShopItem, ShopItem, UndoShopItem } from "@/src/lib/economy/economy-types";
+import type {
+  CoinShopItem,
+  GemShopItem,
+  HintShopItem,
+  SenseiCharacterShopItem,
+  ShopItem,
+  UndoShopItem,
+} from "@/src/lib/economy/economy-types";
 
 export const HINT_PACKS: HintShopItem[] = [
   {
@@ -118,4 +125,23 @@ export const UNDO_PACKS: UndoShopItem[] = [
   },
 ];
 
-export const SHOP_ITEMS: ShopItem[] = [...COIN_PACKS, ...GEM_PACKS, ...HINT_PACKS, ...UNDO_PACKS];
+export const SENSEI_CHARACTER_ITEMS: SenseiCharacterShopItem[] = [
+  {
+    id: "sensei_ugway",
+    title: "Угвей",
+    description: "Мудрый наставник для спокойной и стратегической игры.",
+    type: "sensei_character",
+    senseiId: "ugway",
+    image: "/characters/ugway/ugway_normal.png",
+    priceGems: 1000,
+    currency: "gems",
+  },
+];
+
+export const SHOP_ITEMS: ShopItem[] = [
+  ...COIN_PACKS,
+  ...GEM_PACKS,
+  ...SENSEI_CHARACTER_ITEMS,
+  ...HINT_PACKS,
+  ...UNDO_PACKS,
+];

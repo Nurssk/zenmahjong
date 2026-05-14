@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { GameActionButton } from "@/components/game/game-action-button";
 import { MahjongTile } from "@/components/game/mahjong-tile";
+import { SenseiOverlay } from "@/components/game/sensei-overlay";
 import { CurrencyPill } from "@/components/layout/currency-pill";
 import { ResourceEmptyDialog } from "@/components/shop/resource-empty-dialog";
 import { useToast } from "@/components/ui/use-toast";
@@ -52,6 +53,13 @@ import {
   type SavedGameMove,
 } from "@/src/lib/game-save";
 import { buildGameResultFromState, saveGameResultWithFallback } from "@/src/lib/stats/game-history-service";
+import { getSenseiAdvice } from "@/src/lib/sensei/getSenseiAdvice";
+import {
+  DEFAULT_SENSEI_ID,
+  SENSEI_CHARACTERS,
+  type SenseiId,
+} from "@/src/lib/sensei/sensei-characters";
+import { SENSEI_UPDATED_EVENT, getSenseiProfile, type SenseiProfile } from "@/src/lib/sensei/sensei-service";
 import {
   checkGameStatus,
   createInitialBoardState,
@@ -342,6 +350,8 @@ export function MahjongBoard({
   const [boardAnimationKey, setBoardAnimationKey] = useState(0);
   const [isDealing, setIsDealing] = useState(false);
   const [resourceDialog, setResourceDialog] = useState<ResourceDialogState | null>(null);
+  const [senseiAdviceIndex, setSenseiAdviceIndex] = useState(0);
+  const [selectedSensei, setSelectedSensei] = useState<SenseiId>(DEFAULT_SENSEI_ID);
   const [economy, setEconomy] = useState<PlayerEconomy>(() => ({
     coins: DEFAULT_ECONOMY.coins,
     gems: DEFAULT_ECONOMY.gems,
@@ -394,6 +404,20 @@ export function MahjongBoard({
         .map((tile, index) => [tile.id, index]),
     );
   }, [state.tiles]);
+  const senseiAdvice = useMemo(
+    () =>
+      getSenseiAdvice(
+        {
+          tiles: state.tiles,
+          status: state.status,
+          hintCount: economy.hints,
+          combo: scoreState.combo,
+        },
+        senseiAdviceIndex,
+      ),
+    [economy.hints, scoreState.combo, senseiAdviceIndex, state.status, state.tiles],
+  );
+  const senseiCharacter = SENSEI_CHARACTERS[selectedSensei] ?? SENSEI_CHARACTERS[DEFAULT_SENSEI_ID];
   const removedCount = state.tiles.length - activeTiles.length;
   const progress = Math.round((removedCount / Math.max(1, state.tiles.length)) * 100);
   const canUndo = undoEnabled && state.removedPairs.length > 0;
@@ -704,6 +728,41 @@ export function MahjongBoard({
   useEffect(() => {
     setAudioMuted(!soundEnabled);
   }, [setAudioMuted, soundEnabled]);
+
+  useEffect(() => {
+    if (authLoading) {
+      return undefined;
+    }
+
+    let cancelled = false;
+    const refreshSensei = () => {
+      void getSenseiProfile(user?.uid)
+        .then((profile) => {
+          if (!cancelled) {
+            setSelectedSensei(profile.selectedSensei);
+          }
+        })
+        .catch(() => {
+          if (!cancelled) {
+            setSelectedSensei(DEFAULT_SENSEI_ID);
+          }
+        });
+    };
+
+    refreshSensei();
+
+    const handleSenseiUpdate = (event: Event) => {
+      const profile = (event as CustomEvent<SenseiProfile>).detail;
+      setSelectedSensei(profile.selectedSensei);
+    };
+
+    window.addEventListener(SENSEI_UPDATED_EVENT, handleSenseiUpdate);
+
+    return () => {
+      cancelled = true;
+      window.removeEventListener(SENSEI_UPDATED_EVENT, handleSenseiUpdate);
+    };
+  }, [authLoading, user?.uid]);
 
   useEffect(() => () => {
     if (saveTimeoutRef.current) {
@@ -1395,9 +1454,9 @@ export function MahjongBoard({
       ref={gameShellRef}
       className={cn(
         "mahjong-game-shell relative overflow-hidden rounded-xl border border-primary/20 bg-gradient-to-br from-card to-background-mid p-2 shadow-glass sm:p-3 md:rounded-2xl md:p-6",
-        "fullscreen:rounded-none fullscreen:border-0 fullscreen:bg-[#0E0E10]",
+        "fullscreen:rounded-none fullscreen:border-0 fullscreen:bg-background",
         isFullscreen
-          ? "flex h-dvh w-screen flex-col overflow-auto rounded-none border-0 bg-[#0E0E10] p-3 pt-20 pb-28 sm:p-4 sm:pt-20 sm:pb-28 md:p-5 md:pt-24 md:pb-28"
+          ? "flex h-dvh w-screen flex-col overflow-auto rounded-none border-0 bg-background p-3 pt-20 pb-28 sm:p-4 sm:pt-20 sm:pb-28 md:p-5 md:pt-24 md:pb-28"
           : null,
         compact ? "min-h-[360px]" : "min-h-[calc(100svh-96px)] md:min-h-[560px]",
       )}
@@ -1559,7 +1618,6 @@ export function MahjongBoard({
           onUndo={handleUndo}
           pauseDisabled={!canTogglePause}
           pausedByUser={isPaused}
-          removedPairsCount={state.removedPairs.length}
           restartEnabled={restartEnabled}
           undoHidden={!undoEnabled}
         />
@@ -1616,6 +1674,14 @@ export function MahjongBoard({
             tournamentResultMode={tournamentResultMode}
           />
         ) : null}
+        {coachOpen ? (
+          <SenseiOverlay
+            advice={senseiAdvice}
+            character={senseiCharacter}
+            onClose={() => setCoachOpen(false)}
+            onNextAdvice={() => setSenseiAdviceIndex((current) => current + 1)}
+          />
+        ) : null}
       </AnimatePresence>
       <ResourceEmptyDialog
         open={Boolean(resourceDialog)}
@@ -1647,7 +1713,7 @@ function FullscreenGameHeader({
   const Icon = soundEnabled ? Volume2 : VolumeX;
 
   return (
-    <header className="fixed inset-x-0 top-0 z-[1150] border-b border-primary/20 bg-[#0E0E10]/88 backdrop-blur-xl">
+    <header className="fixed inset-x-0 top-0 z-[1150] border-b border-primary/20 bg-background/88 backdrop-blur-xl">
       <div className="flex h-14 items-center justify-between gap-2 px-2 sm:px-4 md:h-16 md:px-5">
         <Link
           href="/dashboard"
@@ -1920,7 +1986,6 @@ function GameActionDock({
   onUndo,
   pauseDisabled,
   pausedByUser,
-  removedPairsCount,
   restartEnabled,
   undoCount,
   undoHidden,
@@ -1940,7 +2005,6 @@ function GameActionDock({
   onUndo: () => void;
   pauseDisabled: boolean;
   pausedByUser: boolean;
-  removedPairsCount: number;
   restartEnabled: boolean;
   undoCount: number;
   undoHidden: boolean;
@@ -2000,7 +2064,7 @@ function GameActionDock({
           </div>
         ) : null}
         <GameActionButton
-          label="AI Тренер"
+          label="Сенсей"
           icon={<Bot />}
           onClick={onCoachToggle}
           disabled={paused}
@@ -2015,24 +2079,6 @@ function GameActionDock({
           className="lg:min-h-24"
         />
       </div>
-      <AnimatePresence>
-        {coachOpen ? (
-          <motion.div
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 8 }}
-            className="rounded-xl border border-primary/20 bg-card/90 p-4 text-sm shadow-glass backdrop-blur-md"
-          >
-            <p className="font-display text-base font-black uppercase tracking-[0.06em] text-primary">AI Тренер</p>
-            <p className="mt-3 leading-6 text-muted-foreground">
-              Совет: сначала освобождайте верхние и боковые плитки. Сейчас доступно пар:{" "}
-              <span className="font-bold text-foreground">{availablePairsCount}</span>. Лучший ход — выбрать пару,
-              которая откроет больше плиток.
-            </p>
-            <p className="mt-3 text-xs text-muted-foreground">Собрано пар: {removedPairsCount}</p>
-          </motion.div>
-        ) : null}
-      </AnimatePresence>
       {restartEnabled ? (
         <button
           type="button"

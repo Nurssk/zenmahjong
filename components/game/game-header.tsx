@@ -73,7 +73,7 @@ export function GameHeader() {
   }, [authLoading, user?.uid]);
 
   return (
-    <header className="fixed inset-x-0 top-0 z-50 border-b border-primary/20 bg-[#0E0E10]/85 px-2 py-2 backdrop-blur-xl md:px-4 md:py-3">
+    <header className="fixed inset-x-0 top-0 z-50 border-b border-primary/20 bg-background/85 px-2 py-2 backdrop-blur-xl md:px-4 md:py-3">
       <Button asChild variant="ghost" size="sm">
         <Link href="/dashboard">
           <Home data-icon="inline-start" />

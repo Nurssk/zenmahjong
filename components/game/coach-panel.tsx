@@ -8,7 +8,7 @@ export function CoachPanel() {
         <CoachPortrait trainerId="airo" />
         <div>
           <p className="font-bold">Мастер Тени</p>
-          <p className="text-xs text-muted-foreground">AI-тренер</p>
+          <p className="text-xs text-muted-foreground">Сенсей</p>
         </div>
       </div>
       <div className="rounded-lg border border-primary/10 bg-popover p-4">

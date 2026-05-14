@@ -244,7 +244,7 @@ export function OnboardingFlow() {
                 <ChoiceStep
                   eyebrow="Опыт"
                   title="Какой уровень партии тебе ближе?"
-                  subtitle="AI-тренер подстроит подсказки и темп под твой опыт."
+                  subtitle="Сенсей подстроит подсказки и темп под твой опыт."
                   options={experienceLevels}
                   value={experienceLevel}
                   onChange={setExperienceLevel}

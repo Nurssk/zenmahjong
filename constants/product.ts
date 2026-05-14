@@ -43,16 +43,16 @@ export const trainers: Trainer[] = [
   {
     id: "airo",
     name: "Airo",
-    title: "Тренер спокойной концентрации",
+    title: "Сенсей спокойной концентрации",
     tone: "Мягкий, терпеливый и точный.",
     quote: "Не спеши. Сначала освободи верхние кости.",
     accent: "from-orange-400 to-amber-200",
-    unlock: "Стартовый тренер",
+    unlock: "Стартовый сенсей",
   },
   {
     id: "vega",
     name: "Vega",
-    title: "Стратегический AI-тренер",
+    title: "Стратегический сенсей",
     tone: "Аналитичный, изящный и дальновидный.",
     quote: "Открой левый фланг. Он даст доступ к двум парам.",
     accent: "from-violet-400 to-fuchsia-200",
@@ -61,7 +61,7 @@ export const trainers: Trainer[] = [
   {
     id: "blitz",
     name: "Blitz",
-    title: "Тренер боевого темпа",
+    title: "Сенсей боевого темпа",
     tone: "Резкий, прямой и быстрый.",
     quote: "Ты теряешь темп. Сейчас важен центр.",
     accent: "from-red-500 to-orange-300",
@@ -232,7 +232,7 @@ export const shopItems: ShopItem[] = [
     name: "Тайник самоцветов",
     category: "gems",
     price: "$4.99",
-    description: "Премиальная валюта для тренеров и редких скинов.",
+    description: "Премиальная валюта для сенсеев и редких скинов.",
     rarity: "rare",
   },
   {
@@ -240,7 +240,7 @@ export const shopItems: ShopItem[] = [
     name: "Vega",
     category: "trainer",
     price: "600 самоцветов",
-    description: "Стратегический AI-тренер с тактическими советами.",
+    description: "Стратегический сенсей с тактическими советами.",
     rarity: "epic",
   },
   {

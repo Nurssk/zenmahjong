@@ -10,6 +10,8 @@ import {
 import { doc, getDoc, serverTimestamp, setDoc } from "firebase/firestore";
 import { auth, db, googleProvider, isFirebaseConfigured } from "@/src/lib/firebase";
 import { resolvePostAuthRedirectPath } from "@/src/lib/progress/tutorial-progress-service";
+import type { AppTheme } from "@/src/lib/theme/theme-service";
+import type { SenseiId } from "@/src/lib/sensei/sensei-characters";
 
 export type AuthProviderId = "email" | "google";
 export type FocusGoal = "relax" | "attention" | "daily_challenges" | "leaderboard";
@@ -23,6 +25,10 @@ export type FirestoreUser = {
   photoURL?: string;
   city?: string;
   onboardingCompleted: boolean;
+  theme?: AppTheme;
+  gems?: number;
+  ownedSenseis?: SenseiId[];
+  selectedSensei?: SenseiId;
   focusGoal?: FocusGoal;
   preferredSessionLength?: PreferredSessionLength;
   experienceLevel?: ExperienceLevel;

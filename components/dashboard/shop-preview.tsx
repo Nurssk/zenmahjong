@@ -12,7 +12,7 @@ export function ShopPreview() {
       </CardHeader>
       <CardContent>
         <p className="text-sm leading-6 text-muted-foreground">
-          Монеты, самоцветы, тренеры, скины доски, расходники и наборы готовы
+          Монеты, самоцветы, сенсеи, скины доски, расходники и наборы готовы
           для демонстрации инвесторам.
         </p>
         <Button asChild variant="outline" className="mt-5 w-full">

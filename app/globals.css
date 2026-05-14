@@ -13,58 +13,72 @@
 }
 
 :root {
-  --background: #0a0a0a;
-  --background-mid: #0f0f0f;
-  --foreground: #e8e8e8;
-  --card: #151515;
-  --card-foreground: #e8e8e8;
-  --popover: #1a1a1a;
-  --popover-foreground: #e8e8e8;
-  --primary: #ff8800;
-  --primary-foreground: #0a0a0a;
-  --secondary: #1f1f1f;
-  --secondary-foreground: #e8e8e8;
-  --muted: #252525;
-  --muted-foreground: #888888;
-  --accent: #ff6600;
+  --background: #f7f7f5;
+  --background-mid: #f1f1ef;
+  --foreground: #151518;
+  --card: #ffffff;
+  --card-foreground: #151518;
+  --popover: #ffffff;
+  --popover-foreground: #151518;
+  --primary: #ff6b35;
+  --primary-foreground: #151518;
+  --secondary: #f1f1ef;
+  --secondary-foreground: #151518;
+  --muted: #ececea;
+  --muted-foreground: #5f5f66;
+  --accent: #ff6b35;
   --accent-foreground: #ffffff;
   --destructive: #ff4444;
   --destructive-foreground: #ffffff;
-  --border: rgba(255, 136, 0, 0.15);
-  --input: rgba(255, 136, 0, 0.1);
-  --input-background: #1a1a1a;
-  --ring: #ff8800;
-  --gold: #ffaa00;
-  --amber: #ff8800;
-  --orange-glow: #ff6600;
-  --purple-energy: #aa44ff;
+  --border: rgba(21, 21, 24, 0.12);
+  --input: rgba(21, 21, 24, 0.12);
+  --input-background: #ffffff;
+  --ring: #ff6b35;
+  --gold: #ff9f1c;
+  --amber: #ff6b35;
+  --orange-glow: #ffa16d;
+  --purple-energy: #6c63ff;
   --red-aura: #ff4444;
   --green-success: #22c55e;
   --radius: 0.75rem;
 }
 
-.light {
-  --background: #f6f0e6;
-  --background-mid: #eee4d5;
-  --foreground: #1b130d;
-  --card: #fff9ef;
-  --card-foreground: #1b130d;
-  --popover: #fff4e4;
-  --popover-foreground: #1b130d;
-  --primary: #cc6500;
-  --primary-foreground: #fff8ef;
-  --secondary: #eadac4;
-  --secondary-foreground: #1b130d;
-  --muted: #e6d7c2;
-  --muted-foreground: #6f5d4b;
-  --accent: #b95100;
+.dark {
+  --background: #0e0e10;
+  --background-mid: #151518;
+  --foreground: #f7f7f5;
+  --card: #151518;
+  --card-foreground: #f7f7f5;
+  --popover: #1b1b1f;
+  --popover-foreground: #f7f7f5;
+  --primary: #ff6b35;
+  --primary-foreground: #0e0e10;
+  --secondary: #1f1f25;
+  --secondary-foreground: #f7f7f5;
+  --muted: #26262c;
+  --muted-foreground: #a1a1aa;
+  --accent: #ffa16d;
   --accent-foreground: #ffffff;
-  --destructive: #c0392b;
+  --destructive: #ff4444;
   --destructive-foreground: #ffffff;
-  --border: rgba(204, 101, 0, 0.24);
-  --input: rgba(204, 101, 0, 0.18);
-  --input-background: #fff9ef;
-  --ring: #cc6500;
+  --border: rgba(255, 107, 53, 0.18);
+  --input: rgba(255, 107, 53, 0.12);
+  --input-background: #151518;
+  --ring: #ff6b35;
+  --gold: #ffaa00;
+  --amber: #ff6b35;
+  --orange-glow: #ffa16d;
+  --purple-energy: #6c63ff;
+  --red-aura: #ff4444;
+  --green-success: #22c55e;
+}
+
+.light {
+  color-scheme: light;
+}
+
+.dark {
+  color-scheme: dark;
 }
 
 * {

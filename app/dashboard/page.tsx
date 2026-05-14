@@ -68,7 +68,7 @@ export default function DashboardPage() {
                   <ShoppingBag className="text-primary" />
                   <h2 className="font-bold">Магазин</h2>
                 </div>
-                <p className="text-sm text-muted-foreground">Доступны новые наборы тренеров.</p>
+                <p className="text-sm text-muted-foreground">Доступны новые наборы сенсеев.</p>
               </Link>
             </aside>
           </div>
